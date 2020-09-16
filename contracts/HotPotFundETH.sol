@@ -76,8 +76,8 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
     }
 
     /**
-    按照基金设定比例投资流动池，统一操作可以节省用户gas消耗.
-    当合约中还未投入流动池的资金额度较大时，一次性投入会产生较大滑点，可能要分批操作，所以投资行为必须由基金统一操作.
+    * @notice 按照基金设定比例投资流动池，统一操作可以节省用户gas消耗.
+    * 当合约中还未投入流动池的资金额度较大时，一次性投入会产生较大滑点，可能要分批操作，所以投资行为必须由基金统一操作.
      */
     function invest(uint amount) external onlyGovernance {
         uint len = pools.length;
@@ -202,9 +202,10 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
     }
 
     /**
-    添加流动池时，已有的流动池等比缩减.
-    需要注意：等比缩减可能出现浮点数，而solidity对浮点数只能取整，从而造成合计比例不足100，添加会失败. 所以需要精心选择添加比例.
-    添加流动池没有对以前的投资做调整，只影响后续投资.
+    * @notice 添加流动池时，已有的流动池等比缩减.
+    * 注意：等比缩减可能出现浮点数，而solidity对浮点数只能取整，从而造成合计比例不足100，添加会失败. 
+    * 所以需要精心选择添加比例,  如果无法凑整，则需要先调用adjustPool调整比例.
+    * 添加流动池后，只影响后续投资，没有调整已有的投资。如果要调整已投入的流动池，应该用reBalance函数.
     */
     function addPool(
         address _token, 
@@ -231,27 +232,52 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         pools[pools.length-1].proportion = _proportion;
     }
 
+
     /**
-    流动池调整，每次只能调整两个流动池，这种设计实现了以下功能：
-    1. 移除流动池：将某个流动池比例降为0即可.
-    2. 至少会保留一个流动池.
-    3. 避免全面调整, 从而节省滑点损失和gas消耗.
-    4. 在调整流动池时, 应该考虑分次调整, 多付几笔gas费用，尽量降低滑点.
+    * @notice 调整流动池.
+    * 每次只能调整2个流动池的流动性，一个升，一个降. 
+    * 如果要移除某个流动池，将该流动池的流动性降到0即可. 对于移除的流动池，需要将该流动池清空.
+    * 调整之后只影响后续投资，没有调整已有的投资。如果要调整已投入的流动池，应该用reBalance函数.
     */
-    function reBalance(
-        uint up_index, 
-        uint down_index, 
+    function adjustPool(
+        uint up_index,
+        uint down_index,
         uint proportion
     ) external onlyGovernance {
-        require(pools.length >= 2, 'Pools too few.');
-        require(up_index < pools.length && down_index < pools.length, 'Pools index out of range.');
+        require(
+            up_index < pools.length && 
+            down_index < pools.length &&
+            up_index != down_index, 'Pools index out of range.'
+        );
         require(pools[down_index].proportion >= proportion, 'Not enough proportion.');
+
+        pools[down_index].proportion -= proportion;
+        pools[up_index].proportion += proportion;
+        //移除比例为0的流动池.
+        if(pools[down_index].proportion == 0) _removePool(down_index);
+    }
+
+    /**
+    * @notice 调整已投入的流动池.
+    * 在调整流动池时, 如果金额较大，则应该考虑分次调整, 多付几笔gas费用，尽量降低滑点.
+     */
+    function reBalance(
+        uint add_index, 
+        uint remove_index, 
+        uint liquidity
+    ) external onlyGovernance {
+        require(
+            add_index < pools.length &&
+            remove_index < pools.length &&
+            add_index != remove_index, 'Pools index out of range.'
+        );
 
         //撤出&兑换
         address token0 = WETH;
-        address token1 = pools[down_index].token;
+        address token1 = pools[remove_index].token;
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
-        uint liquidity = pair.balanceOf(address(this)).mul(proportion).div(pools[down_index].proportion);
+        require(liquidity <= pair.balanceOf(address(this)), 'Not enough liquidity.');
+
         (uint amount0, uint amount1) = IUniswapV2Router(UNISWAP_V2_ROUTER).removeLiquidity(
             token0, token1,
             liquidity,
@@ -263,10 +289,8 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         else
             amount0 = amount0.add(_swap(token1, token0, amount1));
         
-        pools[down_index].proportion -= proportion;
-
         //兑换&投入
-        token1 = pools[up_index].token;
+        token1 = pools[add_index].token;
         amount0 = amount0 >> 1;
         if( paths[token0][token1] == SwapPath.CURVE )
             amount1 = _swapByCurve(token0, token1, amount0);
@@ -279,10 +303,6 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
             0, 0,
             address(this), block.timestamp
         );
-        pools[up_index].proportion += proportion;
-
-        //移除比例为0的流动池.
-        if(pools[down_index].proportion == 0) _removePool(down_index);
 
         //处理dust. 如果有的话
         if(amount1 > amountB) {
@@ -295,6 +315,24 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
 
     function _removePool(uint index) internal {
         require(index < pools.length, 'Pools index out of range.');
+
+        //撤出&兑换
+        address token0 = WETH;
+        address token1 = pools[index].token;
+        IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
+        uint liquidity = pair.balanceOf(address(this));
+        
+        (uint amount0, uint amount1) = IUniswapV2Router(UNISWAP_V2_ROUTER).removeLiquidity(
+            token0, token1,
+            liquidity,
+            0, 0,
+            address(this), block.timestamp
+        );
+        if( paths[token1][token0] == SwapPath.CURVE )
+            amount0 = amount0.add(_swapByCurve(token1, token0, amount1));
+        else
+            amount0 = amount0.add(_swap(token1, token0, amount1));
+
         /**
         重新构建pools数组
         */

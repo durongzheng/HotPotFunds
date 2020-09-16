@@ -30,7 +30,8 @@ interface IHotPotFund {
         
     function invest(uint amount) external;    
     function addPool(address _token, uint _proportion) external;
-    function reBalance(uint up_index, uint down_index, uint proportion) external;
+    function adjustPool(uint up_index, uint down_index, uint proportion) external;
+    function reBalance(uint add_index, uint remove_index, uint liquidity) external;
     function setSwapPath(address tokenIn, address tokenOut, uint path) external;
     function setGovernance(address _governance) external;
 }
