@@ -25,7 +25,6 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
     mapping (address => int128) private curve_tokenID;
 
     address public governance;
-    mapping(address => uint) public investmentOf;
 
     struct Pool {
         address token;

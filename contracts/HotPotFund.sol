@@ -24,7 +24,6 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
 
     address public token;
     address public governance;
-    mapping(address => uint) public investmentOf;
 
     struct Pool {
         address token;
