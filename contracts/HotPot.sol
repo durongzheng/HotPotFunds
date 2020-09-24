@@ -2,22 +2,24 @@ pragma solidity >=0.5.0;
 
 import './libraries/SafeMath.sol';
 
-contract HotPotFundERC20 {
+contract HotPot {
     using SafeMath for uint;
 
-    string public constant name = 'HotPot Fund';
+    string public constant name = 'HotPot Funds';
     string public constant symbol = 'HotPot';
     uint8 public constant decimals = 18;
-    uint public totalSupply;
+    uint public totalSupply = 1000000e18;  // Initial supply 1 million HotPot.
+
     mapping(address => uint) public balanceOf;    
-    mapping(address => uint) public investmentOf;
 
     mapping(address => mapping(address => uint)) public allowance;
 
     event Approval(address indexed owner, address indexed spender, uint value);
     event Transfer(address indexed from, address indexed to, uint value);
 
-    constructor() public {
+    constructor(address account) public {
+        balanceOf[account] = totalSupply;
+        emit Transfer(address(0), account, totalSupply);
     }
 
     function _mint(address to, uint value) internal {
@@ -48,11 +50,8 @@ contract HotPotFundERC20 {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
 
-        uint invest = investmentOf[from].mul(value).div(balanceOf[from]);
         balanceOf[from] = balanceOf[from].sub(value);
-        investmentOf[from] = investmentOf[from].sub(invest);
         balanceOf[to] = balanceOf[to].add(value);
-        investmentOf[to] = investmentOf[to].add(invest);
         emit Transfer(from, to, value);
     }
 
@@ -69,6 +68,17 @@ contract HotPotFundERC20 {
     function transferFrom(address from, address to, uint value) external returns (bool) {
         allowance[from][msg.sender] = allowance[from][msg.sender].sub(value);
         _transfer(from, to, value);
+        return true;
+    }
+
+    function burn(uint value) external returns (bool) {
+        _burn(msg.sender, value);
+        return true;
+    }
+
+    function burnFrom(address from, uint value) external returns (bool) {
+        allowance[from][msg.sender] = allowance[from][msg.sender].sub(value);
+        _burn(msg.sender, value);
         return true;
     }
 }

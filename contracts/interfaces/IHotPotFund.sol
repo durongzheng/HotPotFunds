@@ -1,9 +1,11 @@
 pragma solidity >=0.5.0;
 
-interface IHotPotFundETH {
+interface IHotPotFund {
     event Approval(address indexed owner, address indexed spender, uint value);
     event Transfer(address indexed from, address indexed to, uint value);
-
+    event Deposit(address indexed owner, uint amount, uint share);
+    event Withdraw(address indexed owner, uint amount, uint share);
+    
     function name() external view returns (string memory);
     function symbol() external view returns (string memory);
     function decimals() external view returns (uint8);
@@ -15,6 +17,7 @@ interface IHotPotFundETH {
     function transfer(address to, uint value) external returns (bool);
     function transferFrom(address from, address to, uint value) external returns (bool);
 
+    function token() external view returns (address); 
     function governance() external view returns (address);
     function assets(uint index) external view returns(uint);
     function totalAssets() external view returns (uint);
@@ -24,7 +27,7 @@ interface IHotPotFundETH {
     function poolsLength() external view returns(uint);
     function paths(address tokenIn, address tokenOut) external view returns(uint);
 
-    function deposit() external payable returns(uint share);
+    function deposit(uint amount) external returns(uint share);
     function withdraw(uint share) external returns(uint amount);    
         
     function invest(uint amount) external;    

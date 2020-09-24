@@ -39,10 +39,13 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         _;
     }
 
+    event Deposit(address indexed owner, uint amount, uint share);
+    event Withdraw(address indexed owner, uint amount, uint share);
+
     constructor (address _token, address _governance) public {
-        //approve for add liquidity and swap. uint(-1) never used up.
-        IERC20(_token).approve(UNISWAP_V2_ROUTER, uint(-1));
-        IERC20(_token).approve(CURVE_FI, uint(-1));
+        //approve for add liquidity and swap. 2^255 never used up.
+        IERC20(_token).approve(UNISWAP_V2_ROUTER, 2^255);
+        IERC20(_token).approve(CURVE_FI, 2^255);
 
         token = _token;
         governance = _governance;
@@ -66,6 +69,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
             share = amount.mul(totalSupply).div(_total_assets);
         
         _mint(msg.sender, share);
+        emit Deposit(msg.sender, amount, share);
     }
 
     /**
@@ -117,6 +121,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         _burn(msg.sender, share);
         investmentOf[msg.sender] = investmentOf[msg.sender].sub(_investment);
         IERC20(token).safeTransfer(msg.sender, amount);
+        emit Withdraw(msg.sender, amount, share);
     }
 
     function _withdraw(
@@ -208,10 +213,10 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         require(pair != address(0), 'Pair not exist.');
         
         //approve for add liquidity and swap.
-        IERC20(_token).approve(UNISWAP_V2_ROUTER, uint(-1));
-        IERC20(_token).approve(CURVE_FI, uint(-1));
+        IERC20(_token).approve(UNISWAP_V2_ROUTER, 2^255);
+        IERC20(_token).approve(CURVE_FI, 2^255);
         //approve for remove liquidity
-        IUniswapV2Pair(pair).approve(UNISWAP_V2_ROUTER, uint(-1));
+        IUniswapV2Pair(pair).approve(UNISWAP_V2_ROUTER, 2^255);
 
         for(uint i=0; i<pools.length; i++) {
             uint _p = pools[i].proportion.mul(DIVISOR.sub(_proportion)).div(DIVISOR);
