@@ -186,10 +186,6 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         return pools.length;
     }
 
-    function setGovernance(address _governance) external onlyGovernance {
-        governance = _governance;
-    }
-
     function setSwapPath(
         address tokenIn, 
         address tokenOut, 
