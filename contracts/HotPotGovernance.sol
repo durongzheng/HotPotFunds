@@ -22,6 +22,14 @@ contract HotPotGovernance is ReentrancyGuard {
         _;
     }
 
+    constructor(
+        address _hotpot,
+        address _manager
+    ) public {
+        hotpot = _hotpot;
+        manager = _manager;
+    }
+
     function harvest(
         address token,
         uint amount
