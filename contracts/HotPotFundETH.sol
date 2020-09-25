@@ -159,6 +159,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         if(amount > investment){
             uint _fee = (amount.sub(investment)).mul(FEE).div(DIVISOR);
             amount = amount.sub(_fee);
+            //给governance转的是WETH.
             IERC20(token0).safeTransfer(governance, _fee);
         }
     }

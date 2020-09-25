@@ -6,8 +6,9 @@ import './interfaces/IHotPot.sol';
 import './interfaces/IUniswapV2Router.sol';
 import './interfaces/IUniswapV2Factory.sol';
 import './libraries/SafeERC20.sol';
+import './ReentrancyGuard.sol';
 
-contract HotPotGovernance {
+contract HotPotGovernance is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     address constant UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
@@ -21,7 +22,10 @@ contract HotPotGovernance {
         _;
     }
 
-    function harvest(address token, uint amount) public returns(uint burned) {
+    function harvest(
+        address token,
+        uint amount
+    ) public nonReentrant returns(uint burned) {
         uint value = amount <= IERC20(token).balanceOf(address(this)) ? amount : IERC20(token).balanceOf(address(this));
 
         address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, hotpot);

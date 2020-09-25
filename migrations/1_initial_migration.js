@@ -1,7 +1,5 @@
-const HotPotFund = artifacts.require("HotPotFund");
-const HotPotFundETH = artifacts.require("HotPotFundETH");
+const hotpot = artifacts.require("HotPot");
 
 module.exports = function(deployer) {
-  deployer.deploy(HotPotFund);
-  deployer.deploy(HotPotFundETH);
+  deployer.deploy(hotpot);
 };
