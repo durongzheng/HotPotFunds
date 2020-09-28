@@ -25,6 +25,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
     mapping (address => int128) private curve_tokenID;
 
     address public governance;
+    uint public totalInvestment;
 
     struct Pool {
         address token;
@@ -68,12 +69,13 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         uint _total_assets = totalAssets();
         IWETH(WETH).deposit.value(amount)();
 
-        investmentOf[msg.sender] = investmentOf[msg.sender].add(amount);
         if(_total_assets == 0) 
             share = amount;
         else 
             share = amount.mul(totalSupply).div(_total_assets);
         
+        investmentOf[msg.sender] = investmentOf[msg.sender].add(amount);
+        totalInvestment = totalInvestment.add(amount);
         _mint(msg.sender, share);
         emit Deposit(msg.sender, amount, share);
     }
@@ -126,6 +128,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         (amount, _investment) = _withdraw(msg.sender, share);
         _burn(msg.sender, share);
         investmentOf[msg.sender] = investmentOf[msg.sender].sub(_investment);
+        totalInvestment = totalInvestment.sub(_investment);
         IWETH(WETH).withdraw(amount);
         msg.sender.transfer(amount);
         emit Withdraw(msg.sender, amount, share);
