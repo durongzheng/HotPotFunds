@@ -17,8 +17,8 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
 
     address constant UNISWAP_FACTORY = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    address constant CURVE_FI = 0xA5407eAE9Ba41422680e2e00537571bcC53efBfD;
-    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address constant CURVE_FI = 0xafC66055C6Fe07a9eC13D9d2447a20f5801475E7;
+    address constant WETH = 0xc778417E063141139Fce010982780140Aa0cD5Ab;
     uint constant DIVISOR = 100;
     uint constant FEE = 20;
 
@@ -46,15 +46,15 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
 
     constructor (address _governance) public {
         //approve for add liquidity and swap. 2^255 never used up.
-        IERC20(WETH).approve(UNISWAP_V2_ROUTER, 2^255);
-        IERC20(WETH).approve(CURVE_FI, 2^255);
+        IERC20(WETH).approve(UNISWAP_V2_ROUTER, 2**256-1);
+        IERC20(WETH).approve(CURVE_FI, 2**256-1);
 
         governance = _governance;
 
-        curve_tokenID[0x6B175474E89094C44Da98b954EedeAC495271d0F] = int128(0);	//DAI
-        curve_tokenID[0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48] = int128(1);	//USDC
-        curve_tokenID[0xdAC17F958D2ee523a2206206994597C13D831ec7] = int128(2);	//USDT
-        curve_tokenID[0x57Ab1ec28D129707052df4dF418D58a2D46d5f51] = int128(3);	//sUSD
+        curve_tokenID[0x46Ea852f836Fd93AfdD80e8af2fCBd70b73044A6] = int128(0);	//DAI
+        curve_tokenID[0x74945623F947b0A8764cd365d3a4784e7D91C8e4] = int128(1);	//USDC
+        curve_tokenID[0x1465ffF54D9D746601845CA2762a0111671CC830] = int128(2);	//USDT
+        curve_tokenID[0x722abBE70Fb536D12E3506b6B062813F8b8B7B04] = int128(3);	//sUSD
     }
 
     function() external payable {
@@ -219,11 +219,11 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(WETH, _token);
         require(pair != address(0), 'Pair not exist.');
         
-        //approve for add liquidity and swap.
-        IERC20(_token).approve(UNISWAP_V2_ROUTER, 2^255);
-        IERC20(_token).approve(CURVE_FI, 2^255);
+        //approve for add liquidity and swap
+        IERC20(_token).safeApprove(UNISWAP_V2_ROUTER, 2**256-1);
+        IERC20(_token).safeApprove(CURVE_FI, 2**256-1);
         //approve for remove liquidity
-        IUniswapV2Pair(pair).approve(UNISWAP_V2_ROUTER, 2^255);
+        IUniswapV2Pair(pair).approve(UNISWAP_V2_ROUTER, 2**256-1);
 
         for(uint i=0; i<pools.length; i++) {
             uint _p = pools[i].proportion.mul(DIVISOR.sub(_proportion)).div(DIVISOR);
