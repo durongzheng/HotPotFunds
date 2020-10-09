@@ -45,7 +45,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
     event Withdraw(address indexed owner, uint amount, uint share);
 
     constructor (address _governance) public {
-        //approve for add liquidity and swap. 2^255 never used up.
+        //approve for add liquidity and swap. 2**256-1 never used up.
         IERC20(WETH).approve(UNISWAP_V2_ROUTER, 2**256-1);
         IERC20(WETH).approve(CURVE_FI, 2**256-1);
 
