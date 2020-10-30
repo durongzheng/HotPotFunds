@@ -72,7 +72,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         uint _total_assets = totalAssets();
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
-        if(_total_assets == 0){
+        if(totalSupply == 0){
             share = amount;
         }
         else{
@@ -375,19 +375,11 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         address token0 = token;
         address token1 = pools[remove_index].token;
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
-        uint availableLP = pair.balanceOf(address(this));
-        uint stackingLP = stakingLPOf(address(pair));
-        uint sumLP = availableLP.add(stackingLP);
-        require(liquidity <= sumLP, 'Not enough liquidity.');
 
-        if(stackingLP > 0){
-            uint withdrawLP = liquidity.mul(stackingLP).div(sumLP);
-            if( withdrawLP > 0){
-                IStakingRewards(uniMintingPool[address(pair)]).withdraw(withdrawLP);
-                IStakingRewards(uniMintingPool[address(pair)]).getReward();
-            }
-            liquidity = liquidity.mul(availableLP).div(sumLP).add(withdrawLP);
-        }
+        uint stakingLP = stakingLPOf(address(pair));
+        if(stakingLP > 0) IStakingRewards(uniMintingPool[address(pair)]).exit();
+
+        require(liquidity <= pair.balanceOf(address(this)), 'Not enough liquidity.');
 
         (uint amount0, uint amount1) = IUniswapV2Router(UNISWAP_V2_ROUTER).removeLiquidity(
             token0, token1,
