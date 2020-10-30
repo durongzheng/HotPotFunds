@@ -1,11 +1,13 @@
 pragma solidity >=0.5.0;
 
 interface IHotPotFund {
+    enum SwapPath { UNISWAP, CURVE }
+
     event Approval(address indexed owner, address indexed spender, uint value);
     event Transfer(address indexed from, address indexed to, uint value);
     event Deposit(address indexed owner, uint amount, uint share);
     event Withdraw(address indexed owner, uint amount, uint share);
-    
+
     function name() external view returns (string memory);
     function symbol() external view returns (string memory);
     function decimals() external view returns (uint8);
@@ -17,7 +19,7 @@ interface IHotPotFund {
     function transfer(address to, uint value) external returns (bool);
     function transferFrom(address from, address to, uint value) external returns (bool);
 
-    function token() external view returns (address); 
+    function token() external view returns (address);
     function governance() external view returns (address);
     function assets(uint index) external view returns(uint);
     function totalAssets() external view returns (uint);
@@ -28,11 +30,15 @@ interface IHotPotFund {
     function paths(address tokenIn, address tokenOut) external view returns(uint);
 
     function deposit(uint amount) external returns(uint share);
-    function withdraw(uint share) external returns(uint amount);    
-        
-    function invest(uint amount) external;    
+    function withdraw(uint share) external returns(uint amount);
+
+    function invest(uint amount) external;
     function addPool(address _token, uint _proportion) external;
     function adjustPool(uint up_index, uint down_index, uint proportion) external;
     function reBalance(uint add_index, uint remove_index, uint liquidity) external;
-    function setSwapPath(address tokenIn, address tokenOut, uint path) external;
+    function setSwapPath(address tokenIn, address tokenOut, SwapPath path) external;
+
+    function setMintingUNIPool(address pair, address mintingPool) external;
+    function stakeMintingUNI(address pair) external;
+    function stakeMintingUNIAll() external;
 }

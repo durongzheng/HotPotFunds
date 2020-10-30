@@ -1,33 +1,25 @@
 pragma solidity >=0.5.0;
 
-import './libraries/SafeMath.sol';
+import '../libraries/SafeMath.sol';
 
-contract HotPot {
+contract ERC20Mock {
     using SafeMath for uint;
 
-    string public constant name = 'HotPot Funds';
-    string public constant symbol = 'HotPot';
-    uint8 public constant decimals = 18;
-    uint public totalSupply = 1000000e18;  // Initial supply 1 million HotPot.
-
-    mapping(address => uint) public balanceOf;
-
+    string public name;
+    string public symbol;
+    uint8 public decimals;
+    uint public totalSupply;
+    
+    mapping(address => uint) public balanceOf;    
     mapping(address => mapping(address => uint)) public allowance;
 
     event Approval(address indexed owner, address indexed spender, uint value);
     event Transfer(address indexed from, address indexed to, uint value);
 
-    constructor(address account) public {
-        balanceOf[account] = totalSupply;
-        emit Transfer(address(0), account, totalSupply);
-    }
-
-    function _burn(address from, uint value) internal {
-        require(from != address(0), "ERC20: burn from the zero address");
-
-        balanceOf[from] = balanceOf[from].sub(value);
-        totalSupply = totalSupply.sub(value);
-        emit Transfer(from, address(0), value);
+    constructor(string memory _name, string memory _symbol, uint8 _decimals) public {
+        name = _name;
+        symbol = _symbol;
+        decimals = _decimals;
     }
 
     function _approve(address owner, address spender, uint value) private {
@@ -62,15 +54,24 @@ contract HotPot {
         _transfer(from, to, value);
         return true;
     }
+    
+    function _mint_for_testing(address to, uint value) external returns(uint amount) {
+        require(to != address(0), "ERC20: mint to the zero address");
 
-    function burn(uint value) external returns (bool) {
-        _burn(msg.sender, value);
-        return true;
+        totalSupply = totalSupply.add(value);
+        balanceOf[to] = balanceOf[to].add(value);
+        emit Transfer(address(0), to, value);
+        
+        return value;
     }
 
-    function burnFrom(address from, uint value) external returns (bool) {
-        allowance[from][msg.sender] = allowance[from][msg.sender].sub(value);
-        _burn(msg.sender, value);
-        return true;
+    function _burn_for_testing(uint value) external returns(uint amount) {
+        require(msg.sender != address(0), "ERC20: burn from the zero address");
+
+        balanceOf[msg.sender] = balanceOf[msg.sender].sub(value);
+        totalSupply = totalSupply.sub(value);
+        emit Transfer(msg.sender, address(0), value);
+        
+        return value;
     }
 }

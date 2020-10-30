@@ -1,29 +1,29 @@
 pragma solidity >=0.5.0;
 
-import './interfaces/IERC20.sol';
-import './interfaces/IUniswapV2Factory.sol';
-import './interfaces/IUniswapV2Router.sol';
-import './interfaces/IUniswapV2Pair.sol';
-import './interfaces/IStakingRewards.sol';
-import './interfaces/ICurve.sol';
-import './libraries/SafeMath.sol';
-import './libraries/SafeERC20.sol';
-import './HotPotFundERC20.sol';
-import './ReentrancyGuard.sol';
+import '../interfaces/IERC20.sol';
+import '../interfaces/IUniswapV2Factory.sol';
+import '../interfaces/IUniswapV2Router.sol';
+import '../interfaces/IUniswapV2Pair.sol';
+import '../interfaces/IStakingRewards.sol';
+import '../interfaces/ICurve.sol';
+import '../libraries/SafeMath.sol';
+import '../libraries/SafeERC20.sol';
+import '../HotPotFundERC20.sol';
+import '../ReentrancyGuard.sol';
 
-contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
+contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     using SafeMath for uint;
     using SafeERC20 for IERC20;
 
-    address constant UNISWAP_FACTORY = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
-    address constant UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    address constant CURVE_FI = 0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7;
-    address constant UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
+    address public UNISWAP_FACTORY = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    address public UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address public CURVE_FI = 0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7;
+    address public UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
 
     uint constant DIVISOR = 100;
     uint constant FEE = 20;
 
-    mapping (address => int128) private curve_tokenID;
+    mapping (address => int128) public curve_tokenID;
 
     address public token;
     address public governance;
@@ -53,7 +53,14 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     event Withdraw(address indexed owner, uint amount, uint share);
 
 
-    constructor (address _token, address _governance) public {
+    constructor (address _token, address _governance,
+                address _UNISWAP_FACTORY, address _UNISWAP_V2_ROUTER, address _CURVE_FI, address _UNI,
+                address dai, address usdc, address usdt) public {
+        UNISWAP_FACTORY = _UNISWAP_FACTORY;
+        UNISWAP_V2_ROUTER = _UNISWAP_V2_ROUTER;
+        CURVE_FI = _CURVE_FI;
+        UNI = _UNI;
+
         //approve for add liquidity and swap. 2**256-1 never used up.
         IERC20(_token).safeApprove(UNISWAP_V2_ROUTER, 2**256-1);
         IERC20(_token).safeApprove(CURVE_FI, 2**256-1);
@@ -61,9 +68,9 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         token = _token;
         governance = _governance;
 
-        curve_tokenID[0x6B175474E89094C44Da98b954EedeAC495271d0F] = int128(0);	//DAI
-        curve_tokenID[0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48] = int128(1);	//USDC
-        curve_tokenID[0xdAC17F958D2ee523a2206206994597C13D831ec7] = int128(2);	//USDT
+        curve_tokenID[dai] = int128(0);	//DAI
+        curve_tokenID[usdc] = int128(1);	//USDC
+        curve_tokenID[usdt] = int128(2);	//USDT
     }
 
     function deposit(uint amount) public nonReentrant returns(uint share) {

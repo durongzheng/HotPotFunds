@@ -1,18 +1,18 @@
 pragma solidity >=0.5.0;
 
-import './interfaces/IHotPotFund.sol';
-import './interfaces/IERC20.sol';
-import './interfaces/IHotPot.sol';
-import './interfaces/IUniswapV2Router.sol';
-import './interfaces/IUniswapV2Factory.sol';
-import './libraries/SafeERC20.sol';
-import './ReentrancyGuard.sol';
+import '../interfaces/IHotPotFund.sol';
+import '../interfaces/IERC20.sol';
+import '../interfaces/IHotPot.sol';
+import '../interfaces/IUniswapV2Router.sol';
+import '../interfaces/IUniswapV2Factory.sol';
+import '../libraries/SafeERC20.sol';
+import '../ReentrancyGuard.sol';
 
-contract HotPotGovernance is ReentrancyGuard {
+contract HotPotGovernanceMock is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    address constant UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    address constant UNISWAP_FACTORY = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    address public UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address public UNISWAP_FACTORY = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
 
     address public hotpot;
     address public manager;
@@ -22,12 +22,13 @@ contract HotPotGovernance is ReentrancyGuard {
         _;
     }
 
-    constructor(
-        address _hotpot,
-        address _manager
-    ) public {
+    constructor(address _hotpot, address _manager,
+        address _UNISWAP_FACTORY, address _UNISWAP_V2_ROUTER) public {
         hotpot = _hotpot;
         manager = _manager;
+
+        UNISWAP_FACTORY = _UNISWAP_FACTORY;
+        UNISWAP_V2_ROUTER = _UNISWAP_V2_ROUTER;
     }
 
     function harvest(
