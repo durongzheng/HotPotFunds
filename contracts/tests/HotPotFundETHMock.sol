@@ -1,38 +1,35 @@
 pragma solidity >=0.5.0;
 
-import './interfaces/IERC20.sol';
-import './interfaces/IUniswapV2Factory.sol';
-import './interfaces/IUniswapV2Router.sol';
-import './interfaces/IUniswapV2Pair.sol';
-import './interfaces/IStakingRewards.sol';
-import './interfaces/ICurve.sol';
-import './libraries/SafeMath.sol';
-import './libraries/SafeERC20.sol';
-import './HotPotFundERC20.sol';
-import './ReentrancyGuard.sol';
+import '../interfaces/IERC20.sol';
+import '../interfaces/IUniswapV2Factory.sol';
+import '../interfaces/IUniswapV2Router.sol';
+import '../interfaces/IUniswapV2Pair.sol';
+import '../interfaces/IStakingRewards.sol';
+import '../interfaces/IWETH.sol';
+import '../libraries/SafeMath.sol';
+import '../libraries/SafeERC20.sol';
+import '../HotPotFundERC20.sol';
+import '../ReentrancyGuard.sol';
 
-contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
+contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
     using SafeMath for uint;
     using SafeERC20 for IERC20;
 
-    address constant UNISWAP_FACTORY = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
-    address constant UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    address constant CURVE_FI = 0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7;
-    address constant UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
+    address public UNISWAP_FACTORY = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    address public UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address public WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address public UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
 
     uint constant DIVISOR = 100;
     uint constant FEE = 20;
 
-    mapping (address => int128) private curve_tokenID;
-
-    address public token;
     address public governance;
     uint public totalInvestment;
 
     // UNI mining rewards
     uint public totalDebts;
     mapping(address => uint256) public debtOf;
-    // UNI mining pool pair->minting pool
+    //UNI mining pool pair->minting pool
     mapping(address => address) public uniMintingPool;
 
     struct Pool {
@@ -40,9 +37,6 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         uint proportion;
     }
     Pool[] public pools;
-
-    enum SwapPath { UNISWAP, CURVE }
-    mapping (address => mapping (address => SwapPath)) public paths;
 
     modifier onlyGovernance() {
         require(msg.sender == governance, 'Only called by Governance.');
@@ -52,32 +46,37 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     event Deposit(address indexed owner, uint amount, uint share);
     event Withdraw(address indexed owner, uint amount, uint share);
 
+    constructor (address _WETH, address _governance,
+                 address _UNISWAP_FACTORY, address _UNISWAP_V2_ROUTER, address _UNI) public {
+        WETH = _WETH;
+        UNISWAP_FACTORY = _UNISWAP_FACTORY;
+        UNISWAP_V2_ROUTER = _UNISWAP_V2_ROUTER;
+        UNI = _UNI;
 
-    constructor (address _token, address _governance) public {
         //approve for add liquidity and swap. 2**256-1 never used up.
-        IERC20(_token).safeApprove(UNISWAP_V2_ROUTER, 2**256-1);
-        IERC20(_token).safeApprove(CURVE_FI, 2**256-1);
+        IERC20(WETH).approve(UNISWAP_V2_ROUTER, 2**256-1);
 
-        token = _token;
         governance = _governance;
-
-        curve_tokenID[0x6B175474E89094C44Da98b954EedeAC495271d0F] = int128(0);	//DAI
-        curve_tokenID[0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48] = int128(1);	//USDC
-        curve_tokenID[0xdAC17F958D2ee523a2206206994597C13D831ec7] = int128(2);	//USDT
     }
 
-    function deposit(uint amount) public nonReentrant returns(uint share) {
-        require(amount > 0, 'Are you kidding me?');
+    function() external payable {
+        // 接受 WETH 转账.
+        if(msg.sender != WETH) deposit();
+    }
+
+    function deposit() public nonReentrant payable returns(uint share) {
+        require(msg.value > 0, 'Are you kidding me?');
+        uint amount = msg.value;
         // 以下两行代码的顺序非常重要：必须先缓存总资产，然后再转账. 否则计算会出错.
         uint _total_assets = totalAssets();
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        IWETH(WETH).deposit.value(amount)();
 
         if(_total_assets == 0){
             share = amount;
         }
         else{
             share = amount.mul(totalSupply).div(_total_assets);
-            // user uni debt
+            //user uni debt 
             uint debt = share.mul(totalDebts.add(totalUNIRewards())).div(totalSupply);
             if(debt > 0){
                 debtOf[msg.sender] = debtOf[msg.sender].add(debt);
@@ -97,18 +96,14 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
      */
     function invest(uint amount) external onlyGovernance {
         uint len = pools.length;
-        require(len>0, 'Pools is empty.');
-        address token0 = token;
+        require(len > 0, 'Pools is empty.');
+        address token0 = WETH;
         require(amount <= IERC20(token0).balanceOf(address(this)), "Not enough balance.");
 
         for(uint i=0; i<len; i++){
             address token1 = pools[i].token;
             uint amount0 = (amount.mul(pools[i].proportion).div(DIVISOR)) >> 1;
-            uint amount1;
-            if( paths[token0][token1] == SwapPath.CURVE )
-                amount1 = _swapByCurve(token0, token1, amount0);
-            else
-                amount1 = _swap(token0, token1, amount0);
+            uint amount1 = _swap(token0, token1, amount0);
 
             (,uint amountB,) = IUniswapV2Router(UNISWAP_V2_ROUTER).addLiquidity(
                 token0, token1,
@@ -124,10 +119,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
             如果出现这种特殊情况，token1会剩余，需要将多余的token1换回token0.
             */
             if(amount1 > amountB) {
-                if( paths[token1][token0] == SwapPath.CURVE )
-                    _swapByCurve(token1, token0, amount1.sub(amountB));
-                else
-                    _swap(token1, token0, amount1.sub(amountB));
+                _swap(token1, token0, amount1.sub(amountB));
             }
         }
     }
@@ -153,7 +145,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
 
     function stakeMintingUNIAll() external onlyGovernance {
         for(uint i = 0; i < pools.length; i++){
-            IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, pools[i].token));
+            IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(WETH, pools[i].token));
             address stakingRewardAddr = uniMintingPool[address(pair)];
             if(stakingRewardAddr != address(0)){
                 uint liquidity = pair.balanceOf(address(this));
@@ -167,7 +159,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     function totalUNIRewards() public view returns(uint amount){
         amount = IERC20(UNI).balanceOf(address(this));
         for(uint i = 0; i < pools.length; i++){
-            IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, pools[i].token));
+            IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(WETH, pools[i].token));
             address stakingRewardAddr = uniMintingPool[address(pair)];
             if(stakingRewardAddr != address(0)){
                 amount = amount.add(IStakingRewards(stakingRewardAddr).earned(address(this)));
@@ -205,10 +197,11 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
 
         uint _investment;
         (amount, _investment) = _withdraw(msg.sender, share);
+        _burn(msg.sender, share);
         investmentOf[msg.sender] = investmentOf[msg.sender].sub(_investment);
         totalInvestment = totalInvestment.sub(_investment);
-        _burn(msg.sender, share);
-        IERC20(token).safeTransfer(msg.sender, amount);
+        IWETH(WETH).withdraw(amount);
+        msg.sender.transfer(amount);
         emit Withdraw(msg.sender, amount, share);
     }
 
@@ -216,7 +209,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         address user,
         uint share
     ) internal returns (uint amount, uint investment) {
-        address token0 = token;
+        address token0 = WETH;
         amount = IERC20(token0).balanceOf(address(this)).mul(share).div(totalSupply);
         for(uint i = 0; i < pools.length; i++) {
             address token1 = pools[i].token;
@@ -231,11 +224,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
                     0, 0,
                     address(this), block.timestamp
                 );
-                amount = amount.add(amount0);
-                if( paths[token1][token0] == SwapPath.CURVE )
-                    amount = amount.add(_swapByCurve(token1, token0, amount1));
-                else
-                    amount = amount.add(_swap(token1, token0, amount1));
+                amount = amount.add(amount0).add(_swap(token1, token0, amount1));
             }
         }
 
@@ -256,13 +245,14 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         if(amount > investment){
             uint _fee = (amount.sub(investment)).mul(FEE).div(DIVISOR);
             amount = amount.sub(_fee);
+            //给governance转的是WETH.
             IERC20(token0).safeTransfer(governance, _fee);
         }
     }
 
     function assets(uint index) public view returns(uint _assets) {
         require(index < pools.length, 'Pools index out of range.');
-        address token0 = token;
+        address token0 = WETH;
         address token1 = pools[index].token;
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
         (uint reserve0, uint reserve1, ) = pair.getReserves();
@@ -275,7 +265,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     }
 
     function totalAssets() public view returns(uint _assets) {
-        address token0 = token;
+        address token0 = WETH;
         for(uint i=0; i<pools.length; i++){
             address token1 = pools[i].token;
             IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
@@ -293,18 +283,10 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         return pools.length;
     }
 
-    function setSwapPath(
-        address tokenIn,
-        address tokenOut,
-        SwapPath path
-    ) external onlyGovernance {
-        paths[tokenIn][tokenOut] = path;
-    }
-
     /**
     * @notice 添加流动池时，已有的流动池等比缩减.
     * 注意：等比缩减可能出现浮点数，而solidity对浮点数只能取整，从而造成合计比例不足100，添加会失败.
-    * 所以需要精心选择添加比例, 如果无法凑整，则需要先调用adjustPool调整比例.
+    * 所以需要精心选择添加比例,  如果无法凑整，则需要先调用adjustPool调整比例.
     * 添加流动池后，只影响后续投资，没有调整已有的投资。如果要调整已投入的流动池，应该用reBalance函数.
     */
     function addPool(
@@ -312,12 +294,11 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         uint _proportion
     ) external onlyGovernance {
         uint _whole;
-        address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, _token);
+        address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(WETH, _token);
         require(pair != address(0), 'Pair not exist.');
 
-        //approve for add liquidity and swap.
+        //approve for add liquidity and swap
         IERC20(_token).safeApprove(UNISWAP_V2_ROUTER, 2**256-1);
-        IERC20(_token).safeApprove(CURVE_FI, 2**256-1);
         //approve for remove liquidity
         IUniswapV2Pair(pair).approve(UNISWAP_V2_ROUTER, 2**256-1);
 
@@ -331,6 +312,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         pools[pools.length-1].token = _token;
         pools[pools.length-1].proportion = _proportion;
     }
+
 
     /**
     * @notice 调整流动池.
@@ -372,14 +354,14 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         );
 
         //撤出&兑换
-        address token0 = token;
+        address token0 = WETH;
         address token1 = pools[remove_index].token;
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
         uint availableLP = pair.balanceOf(address(this));
         uint stackingLP = stakingLPOf(address(pair));
         uint sumLP = availableLP.add(stackingLP);
         require(liquidity <= sumLP, 'Not enough liquidity.');
-
+        
         if(stackingLP > 0){
             uint withdrawLP = liquidity.mul(stackingLP).div(sumLP);
             if( withdrawLP > 0){
@@ -395,18 +377,12 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
             0, 0,
             address(this), block.timestamp
         );
-        if( paths[token1][token0] == SwapPath.CURVE )
-            amount0 = amount0.add(_swapByCurve(token1, token0, amount1));
-        else
-            amount0 = amount0.add(_swap(token1, token0, amount1));
+        amount0 = amount0.add(_swap(token1, token0, amount1));
 
         //兑换&投入
         token1 = pools[add_index].token;
         amount0 = amount0 >> 1;
-        if( paths[token0][token1] == SwapPath.CURVE )
-            amount1 = _swapByCurve(token0, token1, amount0);
-        else
-            amount1 = _swap(token0, token1, amount0);
+        amount1 = _swap(token0, token1, amount0);
 
         (,uint amountB,) = IUniswapV2Router(UNISWAP_V2_ROUTER).addLiquidity(
             token0, token1,
@@ -417,10 +393,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
 
         //处理dust. 如果有的话
         if(amount1 > amountB) {
-            if( paths[token1][token0] == SwapPath.CURVE )
-                _swapByCurve(token1, token0, amount1.sub(amountB));
-            else
-                _swap(token1, token0, amount1.sub(amountB));
+            _swap(token1, token0, amount1.sub(amountB));
         }
     }
 
@@ -428,7 +401,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         require(index < pools.length, 'Pools index out of range.');
 
         //撤出&兑换
-        address token0 = token;
+        address token0 = WETH;
         address token1 = pools[index].token;
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
         _withdrawStaking(pair, totalSupply);
@@ -441,13 +414,9 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
                 0, 0,
                 address(this), block.timestamp
             );
-            if( paths[token1][token0] == SwapPath.CURVE )
-                amount0 = amount0.add(_swapByCurve(token1, token0, amount1));
-            else
-                amount0 = amount0.add(_swap(token1, token0, amount1));
+            amount0 = amount0.add(_swap(token1, token0, amount1));
         }
         IERC20(token1).safeApprove(UNISWAP_V2_ROUTER, 0);
-        IERC20(token1).safeApprove(CURVE_FI, 0);
 
         /**
         重新构建pools数组
@@ -479,12 +448,5 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
             path,
             address(this), block.timestamp);
         return amounts[1];
-    }
-
-    function _swapByCurve(address tokenIn, address tokenOut, uint amount) private returns(uint) {
-        int128 id0 = curve_tokenID[tokenIn];
-        int128 id1 = curve_tokenID[tokenOut];
-        ICurve(CURVE_FI).exchange(id0, id1, amount, 0);
-        return IERC20(tokenOut).balanceOf(address(this));
     }
 }

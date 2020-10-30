@@ -4,12 +4,12 @@
 
 pragma solidity ^0.5.16;
 
-import './interfaces/IERC20.sol';
-import './interfaces/IStakingRewards.sol';
-import './libraries/SafeMath.sol';
-import './libraries/SafeERC20.sol';
-import './libraries/Address.sol';
-import './ReentrancyGuard.sol';
+import '../interfaces/IERC20.sol';
+import '../interfaces/IStakingRewards.sol';
+import '../libraries/SafeMath.sol';
+import '../libraries/SafeERC20.sol';
+import '../libraries/Address.sol';
+import '../ReentrancyGuard.sol';
 
 contract RewardsDistributionRecipient {
     address public rewardsDistribution;
@@ -22,7 +22,7 @@ contract RewardsDistributionRecipient {
     }
 }
 
-contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, ReentrancyGuard {
+contract StakingRewardsMock is IStakingRewards, RewardsDistributionRecipient, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -32,7 +32,7 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     address public stakingToken;
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
-    uint256 public rewardsDuration = 60 days;
+    uint256 public rewardsDuration = 30 seconds;//60 days
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
