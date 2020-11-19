@@ -25,6 +25,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
 
     address public governance;
     uint public totalInvestment;
+    mapping (address => uint) public investmentOf;
 
     // UNI mining rewards
     uint public totalDebts;
@@ -76,7 +77,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
         }
         else{
             share = amount.mul(totalSupply).div(_total_assets);
-            //user uni debt 
+            //user uni debt
             uint debt = share.mul(totalDebts.add(totalUNIRewards())).div(totalSupply);
             if(debt > 0){
                 debtOf[msg.sender] = debtOf[msg.sender].add(debt);
@@ -359,7 +360,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
 
         uint stakingLP = stakingLPOf(address(pair));
-        if(stakingLP > 0) IStakingRewards(uniMintingPool[address(pair)]).exit();        
+        if(stakingLP > 0) IStakingRewards(uniMintingPool[address(pair)]).exit();
 
         require(liquidity <= pair.balanceOf(address(this)), 'Not enough liquidity.');
 

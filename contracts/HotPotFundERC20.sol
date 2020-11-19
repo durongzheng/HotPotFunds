@@ -5,13 +5,11 @@ import './libraries/SafeMath.sol';
 contract HotPotFundERC20 {
     using SafeMath for uint;
 
-    string public constant name = 'HotPot Fund';
-    string public constant symbol = 'HotPot';
+    string public constant name = 'Hotpot V1';
+    string public constant symbol = 'HOT-V1';
     uint8 public constant decimals = 18;
     uint public totalSupply;
-    mapping(address => uint) public balanceOf;    
-    mapping(address => uint) public investmentOf;
-
+    mapping(address => uint) public balanceOf;
     mapping(address => mapping(address => uint)) public allowance;
 
     event Approval(address indexed owner, address indexed spender, uint value);
@@ -48,11 +46,8 @@ contract HotPotFundERC20 {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
 
-        uint invest = investmentOf[from].mul(value).div(balanceOf[from]);
         balanceOf[from] = balanceOf[from].sub(value);
-        investmentOf[from] = investmentOf[from].sub(invest);
         balanceOf[to] = balanceOf[to].add(value);
-        investmentOf[to] = investmentOf[to].add(invest);
         emit Transfer(from, to, value);
     }
 

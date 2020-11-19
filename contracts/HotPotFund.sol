@@ -28,6 +28,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     address public token;
     address public governance;
     uint public totalInvestment;
+    mapping (address => uint) public investmentOf;
 
     // UNI mining rewards
     uint public totalDebts;
