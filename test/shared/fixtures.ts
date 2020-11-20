@@ -304,7 +304,7 @@ export async function HotPotFixture(provider: Web3Provider, [wallet]: Wallet[]):
 
     // deploy HotPotGovernance
     const hotPotGovernance = await deployContract(wallet, HotPotGovernance,
-        [tokenHotPot.address, wallet.address, factory.address, router.address], overrides);
+        [tokenHotPot.address, wallet.address, wallet.address, factory.address, router.address], overrides);
     // deploy HotPotFunds
     const commonInitArgs = [hotPotGovernance.address, factory.address, router.address, curve.address, tokenUNI.address, tokenDAI.address, tokenUSDC.address, tokenUSDT.address];
     const hotPotFundDAI = await deployContract(wallet, HotPotFund,

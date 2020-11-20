@@ -16,16 +16,23 @@ contract HotPotGovernanceMock is ReentrancyGuard {
 
     address public hotpot;
     address public manager;
+    address public multiSigner;
 
     modifier onlyManager {
         require(msg.sender == manager, 'Only called by Manager.');
         _;
     }
 
-    constructor(address _hotpot, address _manager,
+    modifier onlyMultiSigner{
+        require(msg.sender == multiSigner, 'Only called by MultiSigner.');
+        _;
+    }
+
+    constructor(address _hotpot, address _manager, address _multiSinger,
         address _UNISWAP_FACTORY, address _UNISWAP_V2_ROUTER) public {
         hotpot = _hotpot;
         manager = _manager;
+        multiSigner = _multiSinger;
 
         UNISWAP_FACTORY = _UNISWAP_FACTORY;
         UNISWAP_V2_ROUTER = _UNISWAP_V2_ROUTER;
@@ -93,7 +100,12 @@ contract HotPotGovernanceMock is ReentrancyGuard {
         manager = account;
     }
 
-    function setMintingUNIPool(address fund, address pair, address mintingPool) external onlyManager {
+    function setMultiSigner(address account) onlyMultiSigner external{
+        require(account != address(0), "invalid multiSigner address.");
+        multiSigner = account;
+    }
+
+    function setMintingUNIPool(address fund, address pair, address mintingPool) external onlyMultiSigner {
         IHotPotFund(fund).setMintingUNIPool(pair, mintingPool);
     }
 

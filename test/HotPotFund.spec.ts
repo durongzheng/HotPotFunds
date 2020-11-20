@@ -411,7 +411,10 @@ describe('HotPotFund', () => {
             const earned = await fixture.uniStakingRewardsDAI.earned(hotPotFund.address);
             const totalUNI = await hotPotFund.totalUNIRewards();
             const mySumUNIReward = await hotPotFund.UNIRewardsOf(depositor.address);
+            const depositorETHBalance = await depositor.getBalance();
             const transaction = await hotPotFund.connect(depositor).withdraw(shareAmount);
+            const gasFee = transaction.gasLimit.mul(transaction.gasPrice);
+            const depositorETHBalance2 = await depositor.getBalance();
             const leaveTotalUNI = await hotPotFund.totalUNIRewards();
             const myLeaveUNIReward = await hotPotFund.UNIRewardsOf(depositor.address);
 
@@ -439,6 +442,13 @@ describe('HotPotFund', () => {
                     //investToken Transfer
                     .to.emit(investToken, "Transfer")
                     .withArgs(hotPotFund.address, depositor.address, removeToUserAmount);
+            } else {
+                await expect(Promise.resolve(transaction))
+                    //investToken Transfer
+                    .to.emit(investToken, "Withdrawal")
+                    .withArgs(hotPotFund.address, removeToUserAmount);
+                // console.log(`gasFee:${gasFee}, depositorETHBalance:${depositorETHBalance}, depositorETHBalance2: ${depositorETHBalance2}`);
+                // await expect(depositorETHBalance2).be.eq(depositorETHBalance.add(removeToUserAmount).sub(gasFee));
             }
 
             const reward = mySumUNIReward.mul(shareAmount).div(userSumShare);
@@ -446,7 +456,7 @@ describe('HotPotFund', () => {
             if (reward.gt(0)) {
                 await expect(Promise.resolve(transaction))
                     // UNI Transfer
-                    .to.emit(fixture.tokenUNI, "Transfer")
+                    .to.emit(fixture.tokenUNI.address, "Transfer")
                     .withArgs(hotPotFund.address, depositor.address, reward);
             }
 
@@ -503,12 +513,12 @@ describe('HotPotFund', () => {
 
     it('stakeMintingUNIAll: after investing', async () => {
         await sleep(1);
+        await expect(governance.stakeMintingUNIAll(hotPotFund.address))
+            .to.not.be.reverted;
+
         //Non-Governance operation
         await expect(hotPotFund.stakeMintingUNIAll())
             .to.be.revertedWith("Only called by Governance.");
-
-        await expect(governance.stakeMintingUNIAll(hotPotFund.address))
-            .to.not.be.reverted;
 
         console.log(`lastUpdateTime:${await fixture.uniStakingRewardsDAI.lastUpdateTime()}`);
     });

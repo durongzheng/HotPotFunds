@@ -29,8 +29,8 @@ describe('HotPotERC20', () => {
 
     it('name, symbol, decimals, totalSupply, balanceOf', async () => {
         const name = await token.name();
-        expect(name).to.eq('HotPot Funds');
-        expect(await token.symbol()).to.eq('HotPot');
+        expect(name).to.eq('Hotpot Funds');
+        expect(await token.symbol()).to.eq('HOT');
         expect(await token.decimals()).to.eq(18);
         expect(await token.totalSupply()).to.eq(TOTAL_SUPPLY);
         expect(await token.balanceOf(wallet.address)).to.eq(TOTAL_SUPPLY);

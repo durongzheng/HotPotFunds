@@ -4,6 +4,7 @@ import './IHotPotFund.sol';
 interface IHotPotGovernance {
     function hotpot() external view returns (address);
     function manager() external view returns (address);
+    function multiSigner() external view returns (address);
 
     function harvest(address token, uint amount) external returns(uint burned);
 
@@ -13,6 +14,7 @@ interface IHotPotGovernance {
     function reBalance(address fund, uint add_index, uint remove_index, uint liquidity) external;
     function setSwapPath(address fund, address tokenIn, address tokenOut, IHotPotFund.SwapPath path) external;
     function setManager(address account) external;
+    function setMultiSigner(address account) external;
 
     function setMintingUNIPool(address fund, address pair, address mintingPool) external;
     function stakeMintingUNI(address fund, address pair) external;
