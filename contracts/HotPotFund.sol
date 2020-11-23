@@ -26,7 +26,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     mapping (address => int128) private curve_tokenID;
 
     address public token;
-    address public governance;
+    address public controller;
     uint public totalInvestment;
     mapping (address => uint) public investmentOf;
 
@@ -45,8 +45,8 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     enum SwapPath { UNISWAP, CURVE }
     mapping (address => mapping (address => SwapPath)) public paths;
 
-    modifier onlyGovernance() {
-        require(msg.sender == governance, 'Only called by Governance.');
+    modifier onlyController() {
+        require(msg.sender == controller, 'Only called by Controller.');
         _;
     }
 
@@ -54,13 +54,13 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     event Withdraw(address indexed owner, uint amount, uint share);
 
 
-    constructor (address _token, address _governance) public {
+    constructor (address _token, address _controller) public {
         //approve for add liquidity and swap. 2**256-1 never used up.
         IERC20(_token).safeApprove(UNISWAP_V2_ROUTER, 2**256-1);
         IERC20(_token).safeApprove(CURVE_FI, 2**256-1);
 
         token = _token;
-        governance = _governance;
+        controller = _controller;
 
         curve_tokenID[0x6B175474E89094C44Da98b954EedeAC495271d0F] = int128(0);	//DAI
         curve_tokenID[0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48] = int128(1);	//USDC
@@ -96,7 +96,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     * @notice 按照基金设定比例投资流动池，统一操作可以节省用户gas消耗.
     * 当合约中还未投入流动池的资金额度较大时，一次性投入会产生较大滑点，可能要分批操作，所以投资行为必须由基金统一操作.
      */
-    function invest(uint amount) external onlyGovernance {
+    function invest(uint amount) external onlyController {
         uint len = pools.length;
         require(len>0, 'Pools is empty.');
         address token0 = token;
@@ -133,8 +133,9 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
-    function setMintingUNIPool(address pair, address mintingPool) external onlyGovernance {
+    function setMintingUNIPool(address pair, address mintingPool) external onlyController {
         require(pair!= address(0) && mintingPool!= address(0), "Invalid args address.");
+
         if(uniMintingPool[pair] != address(0)){
             _withdrawStaking(IUniswapV2Pair(pair), totalSupply);
         }
@@ -142,7 +143,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         uniMintingPool[pair] = mintingPool;
     }
 
-    function stakeMintingUNI(address pair) public onlyGovernance {
+    function stakeMintingUNI(address pair) public onlyController {
         address stakingRewardAddr = uniMintingPool[pair];
         if(stakingRewardAddr != address(0)){
             uint liquidity = IUniswapV2Pair(pair).balanceOf(address(this));
@@ -152,7 +153,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
-    function stakeMintingUNIAll() external onlyGovernance {
+    function stakeMintingUNIAll() external onlyController {
         for(uint i = 0; i < pools.length; i++){
             IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, pools[i].token));
             address stakingRewardAddr = uniMintingPool[address(pair)];
@@ -257,7 +258,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         if(amount > investment){
             uint _fee = (amount.sub(investment)).mul(FEE).div(DIVISOR);
             amount = amount.sub(_fee);
-            IERC20(token0).safeTransfer(governance, _fee);
+            IERC20(token0).safeTransfer(controller, _fee);
         }
     }
 
@@ -298,7 +299,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         address tokenIn,
         address tokenOut,
         SwapPath path
-    ) external onlyGovernance {
+    ) external onlyController {
         paths[tokenIn][tokenOut] = path;
     }
 
@@ -311,7 +312,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     function addPool(
         address _token,
         uint _proportion
-    ) external onlyGovernance {
+    ) external onlyController {
         uint _whole;
         address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, _token);
         require(pair != address(0), 'Pair not exist.');
@@ -343,7 +344,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         uint up_index,
         uint down_index,
         uint proportion
-    ) external onlyGovernance {
+    ) external onlyController {
         require(
             up_index < pools.length &&
             down_index < pools.length &&
@@ -365,7 +366,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         uint add_index,
         uint remove_index,
         uint liquidity
-    ) external onlyGovernance {
+    ) external onlyController {
         require(
             add_index < pools.length &&
             remove_index < pools.length &&

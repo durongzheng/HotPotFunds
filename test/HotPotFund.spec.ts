@@ -26,10 +26,11 @@ describe('HotPotFund', () => {
     });
 
     const [manager, depositor, trader, other, others] = provider.getWallets();
+    const governance = manager;
     const loadFixture = createFixtureLoader(provider, [manager]);
     let TOKEN_TYPE: string;
     let fixture: HotPotFixture;
-    let governance: Contract;
+    let controller: Contract;
     let tokenHotPot: Contract;
     let pools: Array<Contract>;
 
@@ -45,7 +46,7 @@ describe('HotPotFund', () => {
     before(async () => {
         TOKEN_TYPE = "ETH"; //DAI/USDC/USDT/ETH
         fixture = await loadFixture(HotPotFixture);
-        governance = fixture.hotPotGovernance;
+        controller = fixture.hotPotController;
         tokenHotPot = fixture.tokenHotPot;
 
         hotPotFund = (<any>fixture)["hotPotFund" + TOKEN_TYPE];
@@ -79,15 +80,15 @@ describe('HotPotFund', () => {
         });
     });
 
-    //token, governance, totalInvestment, poolsLength, curve_tokenID, paths
+    //token, controller, totalInvestment, poolsLength, curve_tokenID, paths
     it('readInitStatus', readStatus(() => {
             const target = hotPotFund;
             const caseData = {
                 token: {
                     value: investToken.address
                 },
-                governance: {
-                    value: governance.address
+                controller: {
+                    value: controller.address
                 },
                 totalInvestment: {
                     value: 0
@@ -132,19 +133,19 @@ describe('HotPotFund', () => {
     ));
 
     it('setUNIMintingPool', async () => {
-        //Non-Governance operation
+        //Non-Controller operation
         await expect(hotPotFund.setMintingUNIPool(await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenDAI.address), fixture.uniStakingRewardsDAI.address))
-            .to.be.revertedWith("Only called by Governance.");
+            .to.be.revertedWith("Only called by Controller.");
 
         if (investToken.address != fixture.tokenWETH.address) {
-            await expect(governance.setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, investToken.address), (fixture as any)["uniStakingRewards" + TOKEN_TYPE].address))
+            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, investToken.address), (fixture as any)["uniStakingRewards" + TOKEN_TYPE].address))
                 .to.not.be.reverted;
         } else {
-            await expect(governance.setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenDAI.address), fixture.uniStakingRewardsDAI.address))
+            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenDAI.address), fixture.uniStakingRewardsDAI.address))
                 .to.not.be.reverted;
-            await expect(governance.setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDC.address), fixture.uniStakingRewardsUSDC.address))
+            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDC.address), fixture.uniStakingRewardsUSDC.address))
                 .to.not.be.reverted;
-            await expect(governance.setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDT.address), fixture.uniStakingRewardsUSDT.address))
+            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDT.address), fixture.uniStakingRewardsUSDT.address))
                 .to.not.be.reverted;
         }
     });
@@ -152,40 +153,43 @@ describe('HotPotFund', () => {
     function addPool(builder: () => any) {
         return async () => {
             const {tokenArr} = await builder();
+            //not trusted token
+            await expect(controller.addPool(hotPotFund.address, hotPotFund.address, 100))
+                .to.be.revertedWith('The token is not trusted.');
             //error pair
-            await expect(governance.addPool(hotPotFund.address, hotPotFund.address, 100))
+            await expect(controller.addPool(hotPotFund.address, investToken.address, 100))
                 .to.be.revertedWith('Pair not exist.');
             //init proportion < 100
-            await expect(governance.addPool(hotPotFund.address, tokenArr[0].address, 10))
+            await expect(controller.addPool(hotPotFund.address, tokenArr[0].address, 10))
                 .to.be.revertedWith('Error proportion.');
             //init proportion > 100
-            await expect(governance.addPool(hotPotFund.address, tokenArr[1].address, 101))
+            await expect(controller.addPool(hotPotFund.address, tokenArr[1].address, 101))
                 .to.be.revertedWith('Error proportion.');
 
-            //Non-Governance operation
+            //Non-Controller operation
             await expect(hotPotFund.addPool(tokenArr[0].address, 100))
-                .to.be.revertedWith("Only called by Governance.");
+                .to.be.revertedWith("Only called by Controller.");
 
             //init proportion USDC=100
-            let transaction = await governance.addPool(hotPotFund.address, tokenArr[0].address, 100);
+            let transaction = await controller.addPool(hotPotFund.address, tokenArr[0].address, 100);
             printGasLimit(transaction, "first add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             if (pools.length == 1) return;
 
             //proportion USDC=50 USDT=50
-            transaction = await governance.addPool(hotPotFund.address, tokenArr[1].address, 50);
+            transaction = await controller.addPool(hotPotFund.address, tokenArr[1].address, 50);
             printGasLimit(transaction, "second add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             if (pools.length == 2) return;
 
             //proportion USDC=25 USDT=25 WETH=50
-            transaction = await governance.addPool(hotPotFund.address, tokenArr[2].address, 50);
+            transaction = await controller.addPool(hotPotFund.address, tokenArr[2].address, 50);
             printGasLimit(transaction, "third add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             if (pools.length == 3) return;
 
             //proportion USDC=12.5 USDT=12.5 WETH=12.5, HotPot=50 reverted
-            await expect(governance.addPool(hotPotFund.address, tokenArr[3].address, 50))
+            await expect(controller.addPool(hotPotFund.address, tokenArr[3].address, 50))
                 .to.be.revertedWith('Error proportion.');
 
             //poolsLength = 3
@@ -210,7 +214,7 @@ describe('HotPotFund', () => {
     }
 
     it('invest: fail before adding pool', async () => {
-        await expect(governance.connect(manager).invest(hotPotFund.address, INIT_DEPOSIT_AMOUNT))
+        await expect(controller.connect(manager).invest(hotPotFund.address, INIT_DEPOSIT_AMOUNT))
             .to.be.revertedWith("Pools is empty.");
     });
 
@@ -275,11 +279,11 @@ describe('HotPotFund', () => {
     }));
 
     it('stakeMintingUNIAll: after deposit and before invest', async () => {
-        //Non-Governance operation
+        //Non-Controller operation
         await expect(hotPotFund.stakeMintingUNIAll())
-            .to.be.revertedWith("Only called by Governance.");
+            .to.be.revertedWith("Only called by Controller.");
 
-        await expect(governance.stakeMintingUNIAll(hotPotFund.address))
+        await expect(controller.stakeMintingUNIAll(hotPotFund.address))
             .to.not.be.reverted;
 
         await expect(await hotPotFund.debtOf(depositor.address))
@@ -293,15 +297,15 @@ describe('HotPotFund', () => {
         return async () => {
             const {amount} = await builder();
             //Non-Manager operation
-            await expect(governance.connect(depositor).invest(hotPotFund.address, amount))
+            await expect(controller.connect(depositor).invest(hotPotFund.address, amount))
                 .to.be.revertedWith("Only called by Manager.");
 
             //Not enough balance.
-            await expect(governance.connect(manager).invest(hotPotFund.address, MaxUint256))
+            await expect(controller.connect(manager).invest(hotPotFund.address, MaxUint256))
                 .to.be.revertedWith("Not enough balance.");
 
             //invest amount
-            const transaction = await governance.connect(manager).invest(hotPotFund.address, amount);
+            const transaction = await controller.connect(manager).invest(hotPotFund.address, amount);
             printGasLimit(transaction);
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             const remaining = await investToken.balanceOf(hotPotFund.address);
@@ -434,7 +438,7 @@ describe('HotPotFund', () => {
                 await expect(Promise.resolve(transaction))
                     //fee
                     .to.emit(investToken, "Transfer")
-                    .withArgs(hotPotFund.address, governance.address, _fee);
+                    .withArgs(hotPotFund.address, controller.address, _fee);
             }
 
             if (investToken.address != fixture.tokenWETH.address) {
@@ -488,12 +492,12 @@ describe('HotPotFund', () => {
             if (investToken.address == fixture.tokenWETH.address) return;
 
             const {tokenIn, tokenOut, path} = await builder();
-            //Non-Governance operation
+            //Non-Controller operation
             await expect(hotPotFund.connect(depositor).setSwapPath(tokenIn.address, tokenOut.address, path))
-                .to.be.revertedWith("Only called by Governance.");
+                .to.be.revertedWith("Only called by Controller.");
 
             //DAi->USDC = Uniswap(0)
-            await expect(governance.connect(manager).setSwapPath(hotPotFund.address, tokenIn.address, tokenOut.address, path))
+            await expect(controller.connect(manager).setSwapPath(hotPotFund.address, tokenIn.address, tokenOut.address, path))
                 .to.not.be.reverted;
         };
     }
@@ -513,12 +517,12 @@ describe('HotPotFund', () => {
 
     it('stakeMintingUNIAll: after investing', async () => {
         await sleep(1);
-        await expect(governance.stakeMintingUNIAll(hotPotFund.address))
+        await expect(controller.stakeMintingUNIAll(hotPotFund.address))
             .to.not.be.reverted;
 
-        //Non-Governance operation
+        //Non-Controller operation
         await expect(hotPotFund.stakeMintingUNIAll())
-            .to.be.revertedWith("Only called by Governance.");
+            .to.be.revertedWith("Only called by Controller.");
 
         console.log(`lastUpdateTime:${await fixture.uniStakingRewardsDAI.lastUpdateTime()}`);
     });
@@ -548,21 +552,21 @@ describe('HotPotFund', () => {
     function adjustPool(builder: () => any) {
         return async () => {
             const {upIndex, downIndex, proportion} = await builder();
-            //Non-Governance operation
+            //Non-Controller operation
             await expect(hotPotFund.connect(depositor).adjustPool(upIndex, downIndex, proportion))
-                .to.be.revertedWith("Only called by Governance.");
+                .to.be.revertedWith("Only called by Controller.");
 
             //error index
-            await expect(governance.adjustPool(hotPotFund.address, 1, 1, 101))
+            await expect(controller.adjustPool(hotPotFund.address, 1, 1, 101))
                 .to.be.revertedWith("Pools index out of range.");
-            await expect(governance.adjustPool(hotPotFund.address, 1, 5, 101))
+            await expect(controller.adjustPool(hotPotFund.address, 1, 5, 101))
                 .to.be.revertedWith("Pools index out of range.");
             //error proportion
-            await expect(governance.adjustPool(hotPotFund.address, upIndex, downIndex, 101))
+            await expect(controller.adjustPool(hotPotFund.address, upIndex, downIndex, 101))
                 .to.be.revertedWith("Not enough proportion.");
 
             //USDC up 10 proportion, USDT down 10 proportion
-            const transaction = await governance.adjustPool(hotPotFund.address, upIndex, downIndex, proportion);
+            const transaction = await controller.adjustPool(hotPotFund.address, upIndex, downIndex, proportion);
             printGasLimit(transaction);
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
         }
@@ -603,21 +607,21 @@ describe('HotPotFund', () => {
 
             const removeLiquidity = removePairLiquidity.div(removeRatio);// MINIMUM_LIQUIDITY = 1000
 
-            //Non-Governance operation
+            //Non-Controller operation
             await expect(hotPotFund.connect(depositor).reBalance(addIndex, removeIndex, removeLiquidity))
-                .to.be.revertedWith("Only called by Governance.");
+                .to.be.revertedWith("Only called by Controller.");
 
             //error index
-            await expect(governance.reBalance(hotPotFund.address, 1, 1, 101))
+            await expect(controller.reBalance(hotPotFund.address, 1, 1, 101))
                 .to.be.revertedWith("Pools index out of range.");
-            await expect(governance.reBalance(hotPotFund.address, 1, 5, 101))
+            await expect(controller.reBalance(hotPotFund.address, 1, 5, 101))
                 .to.be.revertedWith("Pools index out of range.");
             //error liquidity
-            await expect(governance.reBalance(hotPotFund.address, addIndex, removeIndex, MaxUint256))
+            await expect(controller.reBalance(hotPotFund.address, addIndex, removeIndex, MaxUint256))
                 .to.be.revertedWith("Not enough liquidity.");
 
             //reBalance
-            let transaction = await governance.connect(manager).reBalance(hotPotFund.address, addIndex, removeIndex, removeLiquidity);
+            let transaction = await controller.connect(manager).reBalance(hotPotFund.address, addIndex, removeIndex, removeLiquidity);
             printGasLimit(transaction);
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
         }
@@ -637,7 +641,7 @@ describe('HotPotFund', () => {
         const downIndex = removeIndex;
         await sleep(1);
         // await printPoolsStatus(hotPotFund);
-        const transaction = await governance.adjustPool(hotPotFund.address, upIndex, downIndex, (await hotPotFund.pools(downIndex)).proportion);
+        const transaction = await controller.adjustPool(hotPotFund.address, upIndex, downIndex, (await hotPotFund.pools(downIndex)).proportion);
         printGasLimit(transaction);
         if (investToken.address != fixture.tokenWETH.address) {
             await expect(Promise.resolve(transaction))
@@ -659,7 +663,7 @@ describe('HotPotFund', () => {
         // console.log(`pools[${removeIndex}] approve hotPotFund to router balance: ${await pools[removeIndex].allowance(hotPotFund.address, fixture.router.address)}`);
         // console.log(`pools[${removeIndex}] approve hotPotFund to curve  balance: ${await pools[removeIndex].allowance(hotPotFund.address, fixture.curve.address)}`);
 
-        const transaction = await governance.addPool(hotPotFund.address, pools[removeIndex].address, 50);
+        const transaction = await controller.addPool(hotPotFund.address, pools[removeIndex].address, 50);
         printGasLimit(transaction);
         await expect(Promise.resolve(transaction)).to.not.be.reverted;
     });
