@@ -5,7 +5,7 @@ interface IHotPotController {
     function hotpot() external view returns (address);
     function manager() external view returns (address);
     function governance() external view returns (address);
-    function trustedTokens(address token) external view returns (bool);
+    function trustedToken(address token) external view returns (bool);
 
     function harvest(address token, uint amount) external returns(uint burned);
 
