@@ -8,7 +8,7 @@ import './interfaces/IUniswapV2Factory.sol';
 import './libraries/SafeERC20.sol';
 import './ReentrancyGuard.sol';
 
-contract HotPotGovernance is ReentrancyGuard {
+contract HotPotController is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     address constant UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
@@ -16,26 +16,29 @@ contract HotPotGovernance is ReentrancyGuard {
 
     address public hotpot;
     address public manager;
-    address public multiSigner;
+    address public governance;
+    mapping (address => bool) public trustedToken;
+
+    event ChangeTrustedToken(address indexed token, bool isTrusted);
 
     modifier onlyManager {
         require(msg.sender == manager, 'Only called by Manager.');
         _;
     }
 
-    modifier onlyMultiSigner{
-        require(msg.sender == multiSigner, 'Only called by MultiSigner.');
+    modifier onlyGovernance{
+        require(msg.sender == governance, 'Only called by Governance.');
         _;
     }
 
     constructor(
         address _hotpot,
         address _manager,
-        address _multiSigner
+        address _governance
     ) public {
         hotpot = _hotpot;
         manager = _manager;
-        multiSigner = _multiSigner;
+        governance = _governance;
     }
 
     function harvest(
@@ -65,6 +68,7 @@ contract HotPotGovernance is ReentrancyGuard {
     }
 
     function addPool(address fund, address token, uint proportion) external onlyManager{
+        require(trustedToken[token], "The token is not trusted.");
         IHotPotFund(fund).addPool(token, proportion);
     }
 
@@ -100,20 +104,25 @@ contract HotPotGovernance is ReentrancyGuard {
         manager = account;
     }
 
-    function setMultiSigner(address account) onlyMultiSigner external{
-        require(account != address(0), "invalid multiSigner address.");
-        multiSigner = account;
-    }
-
-    function setMintingUNIPool(address fund, address pair, address mintingPool) external onlyMultiSigner {
-        IHotPotFund(fund).setMintingUNIPool(pair, mintingPool);
-    }
-
     function stakeMintingUNI(address fund, address pair) external onlyManager {
         IHotPotFund(fund).stakeMintingUNI(pair);
     }
 
     function stakeMintingUNIAll(address fund) external onlyManager {
         IHotPotFund(fund).stakeMintingUNIAll();
+    }
+
+    function setGovernance(address account) onlyGovernance external {
+        require(account != address(0), "invalid governance address.");
+        governance = account;
+    }
+
+    function setMintingUNIPool(address fund, address pair, address mintingPool) external onlyGovernance {
+        IHotPotFund(fund).setMintingUNIPool(pair, mintingPool);
+    }
+
+    function setTrustedToken(address token, bool isTrusted) external onlyGovernance {
+        trustedToken[token] = isTrusted;
+        emit ChangeTrustedToken(token, isTrusted);
     }
 }

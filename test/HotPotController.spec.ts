@@ -15,7 +15,7 @@ const INIT_DEPOSIT_AMOUNT_6 = expandTo6Decimals(1e3);
 const INIT_HARVEST_AMOUNT_18 = expandTo18Decimals(25);
 const INIT_HARVEST_AMOUNT_6 = expandTo6Decimals(25);
 
-describe('HotPotGovernance', () => {
+describe('HotPotController', () => {
     //获取provider环境
     const provider = new MockProvider({
         hardfork: 'istanbul',
@@ -23,11 +23,11 @@ describe('HotPotGovernance', () => {
         gasLimit: 9999999
     });
     const [manager, depositor, trader, other] = provider.getWallets();
-    const multiSinger = manager;
+    const governance = manager;
     const loadFixture = createFixtureLoader(provider, [manager]);
 
     let fixture: HotPotFixture;
-    let governance: Contract;
+    let controller: Contract;
     let hotPotFund: Contract;
     let investToken: Contract;
     let tokenHotPot: Contract;
@@ -39,7 +39,7 @@ describe('HotPotGovernance', () => {
 
     before(async () => {
         fixture = await loadFixture(HotPotFixture);
-        governance = fixture.hotPotGovernance;
+        controller = fixture.hotPotController;
         tokenHotPot = fixture.tokenHotPot;
 
         const TOKEN_TYPE = "DAI";//case ETH/DAI/USDT/USDC
@@ -66,10 +66,10 @@ describe('HotPotGovernance', () => {
         });
     });
 
-    it('hotpot, manager, multiSigner', async () => {
-        await expect(await governance.hotpot()).to.eq(tokenHotPot.address);
-        await expect(await governance.manager()).to.eq(manager.address);
-        await expect(await governance.multiSigner()).to.eq(manager.address);
+    it('hotpot, manager, governance, trustedTokens', async () => {
+        await expect(await controller.hotpot()).to.eq(tokenHotPot.address);
+        await expect(await controller.manager()).to.eq(manager.address);
+        await expect(await controller.governance()).to.eq(governance.address);
     });
 
     function harvest(builder: () => any) {
@@ -78,29 +78,29 @@ describe('HotPotGovernance', () => {
             const {amountOut, pair} = await getAmountOut(fixture.factory, fixture.router,
                 investToken.address, tokenHotPot.address, amountIn);
 
-            //transfer token to hotPotGovernance for testing harvest
-            await expect(investToken.transfer(governance.address, amountIn))
+            //transfer token to hotPotController for testing harvest
+            await expect(investToken.transfer(controller.address, amountIn))
                 .to.not.be.reverted;
-            //token balance of governance = amountIn
-            await expect(await investToken.balanceOf(governance.address))
+            //token balance of controller = amountIn
+            await expect(await investToken.balanceOf(controller.address))
                 .to.eq(amountIn);
 
             //error pair
-            await expect(governance.harvest(tokenHotPot.address, amountIn))
+            await expect(controller.harvest(tokenHotPot.address, amountIn))
                 .to.be.revertedWith("Pair not exist.");
 
             //amountIn = 0
-            await expect(governance.harvest(investToken.address, 0))
+            await expect(controller.harvest(investToken.address, 0))
                 .to.be.reverted;
 
             //amountIn = daiAmountIn
-            await expect(governance.harvest(investToken.address, amountIn))
+            await expect(controller.harvest(investToken.address, amountIn))
                 //uniswap
                 .to.emit(tokenHotPot, "Transfer")
-                .withArgs(pair.address, governance.address, amountOut)
+                .withArgs(pair.address, controller.address, amountOut)
                 //burn
                 .to.emit(tokenHotPot, "Transfer")
-                .withArgs(governance.address, AddressZero, amountOut);
+                .withArgs(controller.address, AddressZero, amountOut);
         }
     }
 
@@ -116,15 +116,15 @@ describe('HotPotGovernance', () => {
             const {pool1, pool2} = await builder();
 
             //Non-Manager operation
-            await expect(governance.connect(depositor).addPool(hotPotFund.address, pool1.address, 100))
+            await expect(controller.connect(depositor).addPool(hotPotFund.address, pool1.address, 100))
                 .to.be.revertedWith("Only called by Manager.");
 
             //init proportion pool1=100
-            await expect(governance.addPool(hotPotFund.address, pool1.address, 100))
+            await expect(controller.addPool(hotPotFund.address, pool1.address, 100))
                 .to.not.be.reverted;
 
             //proportion pool1=50、poo2=50
-            await expect(governance.addPool(hotPotFund.address, pool2.address, 50))
+            await expect(controller.addPool(hotPotFund.address, pool2.address, 50))
                 .to.not.be.reverted;
         }
     }
@@ -139,11 +139,11 @@ describe('HotPotGovernance', () => {
 
             const {tokenIn, tokenOut, path} = await builder();
             //Non-Manager operation
-            await expect(governance.connect(depositor).setSwapPath(hotPotFund.address, tokenIn.address, tokenOut.address, path))
+            await expect(controller.connect(depositor).setSwapPath(hotPotFund.address, tokenIn.address, tokenOut.address, path))
                 .to.be.revertedWith("Only called by Manager.");
 
             //DAi->USDC = Uniswap(0)
-            await expect(governance.connect(manager).setSwapPath(hotPotFund.address, tokenIn.address, tokenOut.address, path))
+            await expect(controller.connect(manager).setSwapPath(hotPotFund.address, tokenIn.address, tokenOut.address, path))
                 .to.not.be.reverted;
         }
     }
@@ -168,11 +168,11 @@ describe('HotPotGovernance', () => {
         return async () => {
             const {amount} = await builder();
             //Non-Manager operation
-            await expect(governance.connect(depositor).invest(hotPotFund.address, amount))
+            await expect(controller.connect(depositor).invest(hotPotFund.address, amount))
                 .to.be.revertedWith("Only called by Manager.");
 
             //invest amount
-            await expect(governance.connect(manager).invest(hotPotFund.address, amount))
+            await expect(controller.connect(manager).invest(hotPotFund.address, amount))
                 .to.not.be.reverted;
         }
     }
@@ -187,11 +187,11 @@ describe('HotPotGovernance', () => {
         return async () => {
             const {upIndex, downIndex, proportion} = await builder();
             //Non-Manager operation
-            await expect(governance.connect(depositor).adjustPool(hotPotFund.address, upIndex, downIndex, proportion))
+            await expect(controller.connect(depositor).adjustPool(hotPotFund.address, upIndex, downIndex, proportion))
                 .to.be.revertedWith("Only called by Manager.");
 
             //USDC up 10 proportion, USDT down 10 proportion
-            await expect(governance.adjustPool(hotPotFund.address, upIndex, downIndex, proportion))
+            await expect(controller.adjustPool(hotPotFund.address, upIndex, downIndex, proportion))
                 .to.not.be.reverted;
         }
     }
@@ -221,11 +221,11 @@ describe('HotPotGovernance', () => {
             const removeLiquidity = removeSumLiquidity.div(2);// MINIMUM_LIQUIDITY = 1000
 
             //Non-Manager operation
-            await expect(governance.connect(depositor).reBalance(hotPotFund.address, addIndex, removeIndex, removeLiquidity))
+            await expect(controller.connect(depositor).reBalance(hotPotFund.address, addIndex, removeIndex, removeLiquidity))
                 .to.be.revertedWith("Only called by Manager.");
 
             //reBalance
-            await expect(governance.connect(manager).reBalance(hotPotFund.address, addIndex, removeIndex, removeLiquidity))
+            await expect(controller.connect(manager).reBalance(hotPotFund.address, addIndex, removeIndex, removeLiquidity))
                 .to.not.be.reverted;
         }
     }
@@ -235,57 +235,73 @@ describe('HotPotGovernance', () => {
         return {addIndex: 0, removeIndex: 1};
     }));
 
-    it('setMintingUNIPool', async () => {
-        const mintPair = (await getPair(fixture.factory, fixture.tokenETH.address, fixture.tokenDAI.address));
-        //Non-MultiSigner operation
-        await expect(governance.connect(depositor).setMintingUNIPool(
-            hotPotFund.address, mintPair.address, fixture.uniStakingRewardsDAI.address))
-            .to.be.revertedWith("Only called by MultiSigner.");
-
-        await expect(governance.connect(multiSinger).setMintingUNIPool(
-            hotPotFund.address, mintPair.address, fixture.uniStakingRewardsDAI.address))
-            .to.not.be.reverted;
-    });
-
     it('stakeMintingUNI', async () => {
-        //Non-MultiSigner operation
-        await expect(governance.connect(depositor).stakeMintingUNI(
+        //Non-Manager operation
+        await expect(controller.connect(depositor).stakeMintingUNI(
             hotPotFund.address, mintPair.address))
             .to.be.revertedWith("Only called by Manager.");
 
-        await expect(governance.connect(multiSinger).stakeMintingUNI(
+        await expect(controller.connect(manager).stakeMintingUNI(
             hotPotFund.address, mintPair.address))
             .to.not.be.reverted;
     });
 
     it('stakeMintingUNIAll', async () => {
-        //Non-MultiSigner operation
-        await expect(governance.connect(depositor).stakeMintingUNIAll(hotPotFund.address))
+        //Non-Manager operation
+        await expect(controller.connect(depositor).stakeMintingUNIAll(hotPotFund.address))
             .to.be.revertedWith("Only called by Manager.");
 
-        await expect(governance.connect(multiSinger).stakeMintingUNIAll(hotPotFund.address))
+        await expect(controller.connect(manager).stakeMintingUNIAll(hotPotFund.address))
             .to.not.be.reverted;
     });
 
     it('setManager', async () => {
         //Non-Manager operation
-        await expect(governance.connect(depositor).setManager(manager.address))
+        await expect(controller.connect(depositor).setManager(manager.address))
             .to.be.revertedWith("Only called by Manager.");
 
-        await expect(governance.connect(manager).setManager(depositor.address)).to.not.be.reverted;
-        await expect(await governance.manager()).to.eq(depositor.address);
-        await expect(governance.connect(depositor).setManager(manager.address)).to.not.be.reverted;
-        await expect(await governance.manager()).to.eq(manager.address);
+        await expect(controller.connect(manager).setManager(depositor.address)).to.not.be.reverted;
+        await expect(await controller.manager()).to.eq(depositor.address);
+        await expect(controller.connect(depositor).setManager(manager.address)).to.not.be.reverted;
+        await expect(await controller.manager()).to.eq(manager.address);
     });
 
-    it('setMultiSigner', async () => {
-        //Non-MultiSigner operation
-        await expect(governance.connect(depositor).setMultiSigner(manager.address))
-            .to.be.revertedWith("Only called by MultiSigner.");
+    it('setGovernance', async () => {
+        //Non-Governance operation
+        await expect(controller.connect(depositor).setGovernance(manager.address))
+            .to.be.revertedWith("Only called by Governance.");
 
-        await expect(governance.connect(multiSinger).setMultiSigner(depositor.address)).to.not.be.reverted;
-        await expect(await governance.multiSigner()).to.eq(depositor.address);
-        await expect(governance.connect(depositor).setMultiSigner(multiSinger.address)).to.not.be.reverted;
-        await expect(await governance.multiSigner()).to.eq(multiSinger.address);
+        await expect(controller.connect(governance).setGovernance(depositor.address)).to.not.be.reverted;
+        await expect(await controller.governance()).to.eq(depositor.address);
+        await expect(controller.connect(depositor).setGovernance(governance.address)).to.not.be.reverted;
+        await expect(await controller.governance()).to.eq(governance.address);
+    });
+
+    it('setMintingUNIPool', async () => {
+        const mintPair = (await getPair(fixture.factory, fixture.tokenETH.address, fixture.tokenDAI.address));
+        //Non-Governance operation
+        await expect(controller.connect(depositor).setMintingUNIPool(
+            hotPotFund.address, mintPair.address, fixture.uniStakingRewardsDAI.address))
+            .to.be.revertedWith("Only called by Governance.");
+
+        await expect(controller.connect(governance).setMintingUNIPool(
+            hotPotFund.address, mintPair.address, fixture.uniStakingRewardsDAI.address))
+            .to.not.be.reverted;
+    });
+
+    it('setTrustedTokens', async () => {
+        //Non-Governance operation
+        await expect(controller.connect(depositor).setGovernance(manager.address))
+            .to.be.revertedWith("Only called by Governance.");
+
+        await expect(controller.connect(governance).setTrustedToken(fixture.tokenDAI.address, false))
+            .to.emit(controller, "ChangeTrustedToken")
+            .withArgs(fixture.tokenDAI.address, false);
+        await expect(await controller.trustedTokens(fixture.tokenDAI.address)).to.eq(false);
+
+        await expect(controller.connect(governance).setTrustedToken(fixture.tokenDAI.address, true))
+            .to.emit(controller, "ChangeTrustedToken")
+            .withArgs(fixture.tokenDAI.address, true);
+        await expect(await controller.trustedTokens(fixture.tokenDAI.address)).to.eq(true);
     });
 });

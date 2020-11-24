@@ -17,7 +17,7 @@ import UniswapV2Factory from '@uniswap/v2-core/build/UniswapV2Factory.json'
 import UniswapV2Router02 from '@uniswap/v2-periphery/build/UniswapV2Router02.json'
 import IUniswapV2Pair from '@uniswap/v2-core/build/IUniswapV2Pair.json'
 
-import HotPotGovernance from '../../build/HotPotGovernanceMock.json';
+import HotPotController from '../../build/HotPotControllerMock.json';
 import HotPotFund from '../../build/HotPotFundMock.json';
 import HotPotFundETH from '../../build/HotPotFundETHMock.json';
 import StakingRewards from '../../build/StakingRewardsMock.json';
@@ -51,7 +51,7 @@ export interface HotPotFixture {
     factory: Contract,
     router: Contract,
 
-    hotPotGovernance: Contract,
+    hotPotController: Contract,
 
     hotPotFundDAI: Contract,
     hotPotFundUSDC: Contract,
@@ -302,11 +302,17 @@ export async function HotPotFixture(provider: Web3Provider, [wallet]: Wallet[]):
     const uniStakingRewardsUSDT = await addUniMintingPool(tokenWETH.address, tokenUSDT.address);
     (factory as any)["uniMintingPool"] = uniMintingPool;
 
-    // deploy HotPotGovernance
-    const hotPotGovernance = await deployContract(wallet, HotPotGovernance,
+    // deploy HotPotController
+    const hotPotController = await deployContract(wallet, HotPotController,
         [tokenHotPot.address, wallet.address, wallet.address, factory.address, router.address], overrides);
+    // init trusted token list
+    await hotPotController.setTrustedToken(tokenWETH.address, true);
+    await hotPotController.setTrustedToken(tokenDAI.address, true);
+    await hotPotController.setTrustedToken(tokenUSDC.address, true);
+    await hotPotController.setTrustedToken(tokenUSDT.address, true);
+    await hotPotController.setTrustedToken(tokenHotPot.address, true);
     // deploy HotPotFunds
-    const commonInitArgs = [hotPotGovernance.address, factory.address, router.address, curve.address, tokenUNI.address, tokenDAI.address, tokenUSDC.address, tokenUSDT.address];
+    const commonInitArgs = [hotPotController.address, factory.address, router.address, curve.address, tokenUNI.address, tokenDAI.address, tokenUSDC.address, tokenUSDT.address];
     const hotPotFundDAI = await deployContract(wallet, HotPotFund,
         [tokenDAI.address, ...commonInitArgs], overrides);
     const hotPotFundUSDC = await deployContract(wallet, HotPotFund,
@@ -314,7 +320,7 @@ export async function HotPotFixture(provider: Web3Provider, [wallet]: Wallet[]):
     const hotPotFundUSDT = await deployContract(wallet, HotPotFund,
         [tokenUSDT.address, ...commonInitArgs], overrides);
     const hotPotFundETH = await deployContract(wallet, HotPotFundETH,
-        [tokenWETH.address, hotPotGovernance.address, factory.address, router.address, tokenUNI.address], overrides);
+        [tokenWETH.address, hotPotController.address, factory.address, router.address, tokenUNI.address], overrides);
 
     // deploy stakingRewards
     const stakingRewardsDAI = await deployContract(wallet, StakingRewards,
@@ -339,7 +345,7 @@ export async function HotPotFixture(provider: Web3Provider, [wallet]: Wallet[]):
         factory,
         router,
 
-        hotPotGovernance,
+        hotPotController,
 
         hotPotFundDAI,
         hotPotFundUSDC,

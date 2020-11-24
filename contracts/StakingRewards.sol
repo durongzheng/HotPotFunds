@@ -32,7 +32,7 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     address public stakingToken;
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
-    uint256 public rewardsDuration = 60 days;
+    uint256 public rewardsDuration = 100 days;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 

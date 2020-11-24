@@ -23,7 +23,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
     uint constant DIVISOR = 100;
     uint constant FEE = 20;
 
-    address public governance;
+    address public controller;
     uint public totalInvestment;
     mapping (address => uint) public investmentOf;
 
@@ -39,15 +39,15 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
     }
     Pool[] public pools;
 
-    modifier onlyGovernance() {
-        require(msg.sender == governance, 'Only called by Governance.');
+    modifier onlyController() {
+        require(msg.sender == controller, 'Only called by Controller.');
         _;
     }
 
     event Deposit(address indexed owner, uint amount, uint share);
     event Withdraw(address indexed owner, uint amount, uint share);
 
-    constructor (address _WETH, address _governance,
+    constructor (address _WETH, address _controller,
                  address _UNISWAP_FACTORY, address _UNISWAP_V2_ROUTER, address _UNI) public {
         WETH = _WETH;
         UNISWAP_FACTORY = _UNISWAP_FACTORY;
@@ -57,7 +57,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
         //approve for add liquidity and swap. 2**256-1 never used up.
         IERC20(WETH).approve(UNISWAP_V2_ROUTER, 2**256-1);
 
-        governance = _governance;
+        controller = _controller;
     }
 
     function() external payable {
@@ -95,7 +95,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
     * @notice 按照基金设定比例投资流动池，统一操作可以节省用户gas消耗.
     * 当合约中还未投入流动池的资金额度较大时，一次性投入会产生较大滑点，可能要分批操作，所以投资行为必须由基金统一操作.
      */
-    function invest(uint amount) external onlyGovernance {
+    function invest(uint amount) external onlyController {
         uint len = pools.length;
         require(len > 0, 'Pools is empty.');
         address token0 = WETH;
@@ -125,7 +125,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
-    function setMintingUNIPool(address pair, address mintingPool) external onlyGovernance {
+    function setMintingUNIPool(address pair, address mintingPool) external onlyController {
         require(pair!= address(0) && mintingPool!= address(0), "Invalid args address.");
         if(uniMintingPool[pair] != address(0)){
             _withdrawStaking(IUniswapV2Pair(pair), totalSupply);
@@ -134,7 +134,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
         uniMintingPool[pair] = mintingPool;
     }
 
-    function stakeMintingUNI(address pair) public onlyGovernance {
+    function stakeMintingUNI(address pair) public onlyController {
         address stakingRewardAddr = uniMintingPool[pair];
         if(stakingRewardAddr != address(0)){
             uint liquidity = IUniswapV2Pair(pair).balanceOf(address(this));
@@ -144,7 +144,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
-    function stakeMintingUNIAll() external onlyGovernance {
+    function stakeMintingUNIAll() external onlyController {
         for(uint i = 0; i < pools.length; i++){
             IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(WETH, pools[i].token));
             address stakingRewardAddr = uniMintingPool[address(pair)];
@@ -246,8 +246,8 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
         if(amount > investment){
             uint _fee = (amount.sub(investment)).mul(FEE).div(DIVISOR);
             amount = amount.sub(_fee);
-            //给governance转的是WETH.
-            IERC20(token0).safeTransfer(governance, _fee);
+            //给controller转的是WETH.
+            IERC20(token0).safeTransfer(controller, _fee);
         }
     }
 
@@ -293,7 +293,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
     function addPool(
         address _token,
         uint _proportion
-    ) external onlyGovernance {
+    ) external onlyController {
         uint _whole;
         address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(WETH, _token);
         require(pair != address(0), 'Pair not exist.');
@@ -325,7 +325,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
         uint up_index,
         uint down_index,
         uint proportion
-    ) external onlyGovernance {
+    ) external onlyController {
         require(
             up_index < pools.length &&
             down_index < pools.length &&
@@ -347,7 +347,7 @@ contract HotPotFundETHMock is ReentrancyGuard, HotPotFundERC20 {
         uint add_index,
         uint remove_index,
         uint liquidity
-    ) external onlyGovernance {
+    ) external onlyController {
         require(
             add_index < pools.length &&
             remove_index < pools.length &&
