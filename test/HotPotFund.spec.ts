@@ -11,7 +11,7 @@ import {getPair, HotPotFixture, INIT_STAKE_REWARDS_AMOUNT, printPoolsStatus, rea
 chai.use(require('chai-shallow-deep-equal'));
 chai.use(solidity);
 
-const initDepositAmount = 1000;
+const initDepositAmount = 10000;
 const INIT_DEPOSIT_AMOUNT_18 = expandTo18Decimals(initDepositAmount);
 const INIT_DEPOSIT_AMOUNT_6 = expandTo6Decimals(initDepositAmount);
 const FEE = 20;
@@ -44,7 +44,7 @@ describe('HotPotFund', () => {
     let expectedShareAmount = bigNumberify(0);
 
     before(async () => {
-        TOKEN_TYPE = "ETH"; //DAI/USDC/USDT/ETH
+        TOKEN_TYPE = "DAI"; //DAI/USDC/USDT/ETH
         fixture = await loadFixture(HotPotFixture);
         controller = fixture.hotPotController;
         tokenHotPot = fixture.tokenHotPot;
@@ -172,19 +172,19 @@ describe('HotPotFund', () => {
 
             //init proportion USDC=100
             let transaction = await controller.addPool(hotPotFund.address, tokenArr[0].address, 100);
-            printGasLimit(transaction, "first add");
+            printGasLimit(transaction, "first-add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             if (pools.length == 1) return;
 
             //proportion USDC=50 USDT=50
             transaction = await controller.addPool(hotPotFund.address, tokenArr[1].address, 50);
-            printGasLimit(transaction, "second add");
+            printGasLimit(transaction, "second-add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             if (pools.length == 2) return;
 
             //proportion USDC=25 USDT=25 WETH=50
             transaction = await controller.addPool(hotPotFund.address, tokenArr[2].address, 50);
-            printGasLimit(transaction, "third add");
+            printGasLimit(transaction, "third-add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             if (pools.length == 3) return;
 
@@ -240,7 +240,7 @@ describe('HotPotFund', () => {
                 ? await hotPotFund.connect(depositor).deposit(depositAmount)
                 : await hotPotFund.connect(depositor).deposit({value: depositAmount});
 
-            printGasLimit(transaction);
+            printGasLimit(transaction, "deposit");
             await expect(Promise.resolve(transaction))
                 .to.emit(hotPotFund, "Transfer")
                 .withArgs(AddressZero, depositor.address, expectShare)
@@ -306,10 +306,10 @@ describe('HotPotFund', () => {
 
             //invest amount
             const transaction = await controller.connect(manager).invest(hotPotFund.address, amount);
-            printGasLimit(transaction);
+            printGasLimit(transaction, "invest");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             const remaining = await investToken.balanceOf(hotPotFund.address);
-            console.log(`remaining invest token: ${formatUnits(remaining, 18)}`);
+            // console.log(`remaining invest token: ${formatUnits(remaining, 18)}`);
         }
     }
 
@@ -384,6 +384,7 @@ describe('HotPotFund', () => {
 
             //update block.timestamp
             await other.sendTransaction({to: manager.address, value: bigNumberify(1)});
+            await sleep(1);
 
             const totalSupply = await hotPotFund.totalSupply();
             const userSumShare = await hotPotFund.balanceOf(depositor.address);
@@ -412,18 +413,18 @@ describe('HotPotFund', () => {
                 removeToUserAmount = sumRemoveAmount.sub(_fee);
             }
 
-            const earned = await fixture.uniStakingRewardsDAI.earned(hotPotFund.address);
-            const totalUNI = await hotPotFund.totalUNIRewards();
+            // const earned = await fixture.uniStakingRewardsDAI.earned(hotPotFund.address);
+            // const totalUNI = await hotPotFund.totalUNIRewards();
             const mySumUNIReward = await hotPotFund.UNIRewardsOf(depositor.address);
             const depositorETHBalance = await depositor.getBalance();
             const transaction = await hotPotFund.connect(depositor).withdraw(shareAmount);
             const gasFee = transaction.gasLimit.mul(transaction.gasPrice);
             const depositorETHBalance2 = await depositor.getBalance();
-            const leaveTotalUNI = await hotPotFund.totalUNIRewards();
-            const myLeaveUNIReward = await hotPotFund.UNIRewardsOf(depositor.address);
+            // const leaveTotalUNI = await hotPotFund.totalUNIRewards();
+            // const myLeaveUNIReward = await hotPotFund.UNIRewardsOf(depositor.address);
 
-            printGasLimit(transaction, _fee.gt(0) ? "have-income" : "no-income");
-            console.log(`removeToUserAmount:${removeToUserAmount}, fee:${_fee}`);
+            printGasLimit(transaction, "withdraw-" + (_fee.gt(0) ? "have-income" : "no-income"));
+            // console.log(`removeToUserAmount:${removeToUserAmount}, fee:${_fee}`);
             // console.log(`UNI Balance：${await fixture.tokenUNI.balanceOf(depositor.address)}`);
 
             await expect(Promise.resolve(transaction))
@@ -452,7 +453,7 @@ describe('HotPotFund', () => {
                     .to.emit(investToken, "Withdrawal")
                     .withArgs(hotPotFund.address, removeToUserAmount);
                 // console.log(`gasFee:${gasFee}, depositorETHBalance:${depositorETHBalance}, depositorETHBalance2: ${depositorETHBalance2}`);
-                // await expect(depositorETHBalance2).be.eq(depositorETHBalance.add(removeToUserAmount).sub(gasFee));
+                await expect(depositorETHBalance2).be.gte(depositorETHBalance.add(removeToUserAmount).sub(gasFee));
             }
 
             const reward = mySumUNIReward.mul(shareAmount).div(userSumShare);
@@ -460,7 +461,7 @@ describe('HotPotFund', () => {
             if (reward.gt(0)) {
                 await expect(Promise.resolve(transaction))
                     // UNI Transfer
-                    .to.emit(fixture.tokenUNI.address, "Transfer")
+                    .to.emit(fixture.tokenUNI, "Transfer")
                     .withArgs(hotPotFund.address, depositor.address, reward);
             }
 
@@ -523,8 +524,6 @@ describe('HotPotFund', () => {
         //Non-Controller operation
         await expect(hotPotFund.stakeMintingUNIAll())
             .to.be.revertedWith("Only called by Controller.");
-
-        console.log(`lastUpdateTime:${await fixture.uniStakingRewardsDAI.lastUpdateTime()}`);
     });
 
     it("deposit: remaining all", deposit(async () => {
@@ -567,7 +566,7 @@ describe('HotPotFund', () => {
 
             //USDC up 10 proportion, USDT down 10 proportion
             const transaction = await controller.adjustPool(hotPotFund.address, upIndex, downIndex, proportion);
-            printGasLimit(transaction);
+            printGasLimit(transaction, "adjustPool");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
         }
     }
@@ -622,7 +621,7 @@ describe('HotPotFund', () => {
 
             //reBalance
             let transaction = await controller.connect(manager).reBalance(hotPotFund.address, addIndex, removeIndex, removeLiquidity);
-            printGasLimit(transaction);
+            printGasLimit(transaction, "reBalance");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
         }
     }
@@ -642,7 +641,7 @@ describe('HotPotFund', () => {
         await sleep(1);
         // await printPoolsStatus(hotPotFund);
         const transaction = await controller.adjustPool(hotPotFund.address, upIndex, downIndex, (await hotPotFund.pools(downIndex)).proportion);
-        printGasLimit(transaction);
+        printGasLimit(transaction, "adjustPool");
         if (investToken.address != fixture.tokenWETH.address) {
             await expect(Promise.resolve(transaction))
                 .to.emit(pools[downIndex], "Approval")
@@ -664,7 +663,7 @@ describe('HotPotFund', () => {
         // console.log(`pools[${removeIndex}] approve hotPotFund to curve  balance: ${await pools[removeIndex].allowance(hotPotFund.address, fixture.curve.address)}`);
 
         const transaction = await controller.addPool(hotPotFund.address, pools[removeIndex].address, 50);
-        printGasLimit(transaction);
+        printGasLimit(transaction, "addPool");
         await expect(Promise.resolve(transaction)).to.not.be.reverted;
     });
 });
