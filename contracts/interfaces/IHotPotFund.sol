@@ -20,10 +20,14 @@ interface IHotPotFund {
     function transferFrom(address from, address to, uint value) external returns (bool);
 
     function token() external view returns (address);
-    function governance() external view returns (address);
+    function controller() external view returns (address);
     function assets(uint index) external view returns(uint);
     function totalAssets() external view returns (uint);
     function investmentOf(address owner) external view returns (uint);
+
+    function totalDebts() external view returns (uint);
+    function debtOf(address owner) external view returns (uint256);
+    function uniMintingPool(address pair) external view returns (address);
 
     function pools(uint index) external view returns (address, uint);
     function poolsLength() external view returns(uint);
