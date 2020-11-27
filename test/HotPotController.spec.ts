@@ -66,7 +66,7 @@ describe('HotPotController', () => {
         });
     });
 
-    it('hotpot, manager, governance, trustedTokens', async () => {
+    it('hotpot, manager, governance', async () => {
         await expect(await controller.hotpot()).to.eq(tokenHotPot.address);
         await expect(await controller.manager()).to.eq(manager.address);
         await expect(await controller.governance()).to.eq(governance.address);
@@ -289,7 +289,7 @@ describe('HotPotController', () => {
             .to.not.be.reverted;
     });
 
-    it('setTrustedTokens', async () => {
+    it('setTrustedToken', async () => {
         //Non-Governance operation
         await expect(controller.connect(depositor).setGovernance(manager.address))
             .to.be.revertedWith("Only called by Governance.");
@@ -297,11 +297,11 @@ describe('HotPotController', () => {
         await expect(controller.connect(governance).setTrustedToken(fixture.tokenDAI.address, false))
             .to.emit(controller, "ChangeTrustedToken")
             .withArgs(fixture.tokenDAI.address, false);
-        await expect(await controller.trustedTokens(fixture.tokenDAI.address)).to.eq(false);
+        await expect(await controller.trustedToken(fixture.tokenDAI.address)).to.eq(false);
 
         await expect(controller.connect(governance).setTrustedToken(fixture.tokenDAI.address, true))
             .to.emit(controller, "ChangeTrustedToken")
             .withArgs(fixture.tokenDAI.address, true);
-        await expect(await controller.trustedTokens(fixture.tokenDAI.address)).to.eq(true);
+        await expect(await controller.trustedToken(fixture.tokenDAI.address)).to.eq(true);
     });
 });
