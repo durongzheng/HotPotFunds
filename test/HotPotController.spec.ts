@@ -16,7 +16,6 @@ const INIT_HARVEST_AMOUNT_18 = expandTo18Decimals(25);
 const INIT_HARVEST_AMOUNT_6 = expandTo6Decimals(25);
 
 describe('HotPotController', () => {
-    //获取provider环境
     const provider = new MockProvider({
         hardfork: 'istanbul',
         mnemonic: 'hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot',
