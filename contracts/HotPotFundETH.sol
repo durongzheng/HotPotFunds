@@ -243,6 +243,9 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
             //给controller转的是WETH.
             IERC20(token0).safeTransfer(controller, _fee);
         }
+        else {
+            investment = amount;
+        }
     }
 
     function assets(uint index) public view returns(uint _assets) {

@@ -260,6 +260,9 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
             amount = amount.sub(_fee);
             IERC20(token0).safeTransfer(controller, _fee);
         }
+        else {
+            investment = amount;
+        }
     }
 
     function assets(uint index) public view returns(uint _assets) {
