@@ -30,8 +30,8 @@ describe('HotPotController', () => {
     let hotPotFund: Contract;
     let investToken: Contract;
     let tokenHotPot: Contract;
-    let pool1: Contract;
-    let pool2: Contract;
+    let token1: Contract;
+    let token2: Contract;
     let INIT_DEPOSIT_AMOUNT: BigNumber;
     let INIT_HARVEST_AMOUNT: BigNumber;
     let mintPair: Contract;
@@ -45,11 +45,11 @@ describe('HotPotController', () => {
         hotPotFund = (<any>fixture)["hotPotFund" + TOKEN_TYPE];
         investToken = (<any>fixture)["token" + TOKEN_TYPE];
 
-        let pools = [fixture.tokenDAI, fixture.tokenUSDC, fixture.tokenUSDT, fixture.tokenWETH];
-        const index = pools.findIndex(value => value.address == investToken.address);
-        pools.splice(index, 1);
-        pool1 = pools[0];
-        pool2 = pools[1];
+        let tokens = [fixture.tokenDAI, fixture.tokenUSDC, fixture.tokenUSDT, fixture.tokenWETH];
+        const index = tokens.findIndex(value => value.address == investToken.address);
+        tokens.splice(index, 1);
+        token1 = tokens[0];
+        token2 = tokens[1];
         mintPair = await getPair(fixture.factory, fixture.tokenETH.address,
             investToken.address != fixture.tokenETH.address ? investToken.address : fixture.tokenDAI.address);
 
@@ -110,26 +110,26 @@ describe('HotPotController', () => {
     }));
 
 
-    function addPool(builder: () => any) {
+    function addPair(builder: () => any) {
         return async () => {
-            const {pool1, pool2} = await builder();
+            const {token1, token2} = await builder();
 
             //Non-Manager operation
-            await expect(controller.connect(depositor).addPool(hotPotFund.address, pool1.address, 100))
+            await expect(controller.connect(depositor).addPair(hotPotFund.address, token1.address, [100]))
                 .to.be.revertedWith("Only called by Manager.");
 
-            //init proportion pool1=100
-            await expect(controller.addPool(hotPotFund.address, pool1.address, 100))
+            //init proportion token1=100
+            await expect(controller.addPair(hotPotFund.address, token1.address, [100]))
                 .to.not.be.reverted;
 
-            //proportion pool1=50、poo2=50
-            await expect(controller.addPool(hotPotFund.address, pool2.address, 50))
+            //proportion token1=50、poo2=50
+            await expect(controller.addPair(hotPotFund.address, token2.address, [50, 50]))
                 .to.not.be.reverted;
         }
     }
 
-    it('addPool', addPool(async () => {
-        return {pool1, pool2};
+    it('addPair', addPair(async () => {
+        return {token1, token2};
     }));
 
     function setSwapPath(builder: () => any) {
@@ -150,7 +150,7 @@ describe('HotPotController', () => {
     it('setSwapPath: Uniswap', setSwapPath(async () => {
         return {
             tokenIn: investToken,
-            tokenOut: pool1,
+            tokenOut: token1,
             path: 0 //Uniswap(0) Curve(1)
         }
     }));
@@ -158,7 +158,7 @@ describe('HotPotController', () => {
     it('setSwapPath: Curve', setSwapPath(async () => {
         return {
             tokenIn: investToken,
-            tokenOut: pool2,
+            tokenOut: token2,
             path: 1 //Uniswap(0) Curve(1)
         }
     }));
@@ -182,24 +182,22 @@ describe('HotPotController', () => {
         return {amount}
     }));
 
-    function adjustPool(builder: () => any) {
+    function adjustPairs(builder: () => any) {
         return async () => {
-            const {upIndex, downIndex, proportion} = await builder();
+            const {proportions} = await builder();
             //Non-Manager operation
-            await expect(controller.connect(depositor).adjustPool(hotPotFund.address, upIndex, downIndex, proportion))
+            await expect(controller.connect(depositor).adjustPairs(hotPotFund.address, proportions))
                 .to.be.revertedWith("Only called by Manager.");
 
             //USDC up 10 proportion, USDT down 10 proportion
-            await expect(controller.adjustPool(hotPotFund.address, upIndex, downIndex, proportion))
+            await expect(controller.adjustPairs(hotPotFund.address, proportions))
                 .to.not.be.reverted;
         }
     }
 
-    it('adjustPool', adjustPool(() => {
+    it('adjustPairs', adjustPairs(() => {
         return {
-            upIndex: 0,
-            downIndex: 1,
-            proportion: 10
+            proportions:[60, 40]
         };
     }));
 
@@ -208,8 +206,8 @@ describe('HotPotController', () => {
         return async () => {
             const {addIndex, removeIndex} = await builder();
 
-            const addTokenAddr = (await hotPotFund.pools(addIndex)).token;
-            const removeTokenAddr = (await hotPotFund.pools(removeIndex)).token;
+            const addTokenAddr = (await hotPotFund.pairs(addIndex)).token;
+            const removeTokenAddr = (await hotPotFund.pairs(removeIndex)).token;
 
             const fundTokenAddr = hotPotFund.token ? await hotPotFund.token() : fixture.tokenWETH.address;
             // const addPair = await getPair(fixture.factory, fundTokenAddr, addTokenAddr);
