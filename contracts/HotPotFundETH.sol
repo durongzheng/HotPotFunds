@@ -282,10 +282,8 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
     }
 
     /**
-    * @notice 添加流动池时，已有的流动池等比缩减.
-    * 注意：等比缩减可能出现浮点数，而solidity对浮点数只能取整，从而造成合计比例不足100，添加会失败.
-    * 所以需要精心选择添加比例,  如果无法凑整，则需要先调用adjustPair调整比例.
-    * 添加流动池后，只影响后续投资，没有调整已有的投资。如果要调整已投入的流动池，应该用reBalance函数.
+    * @notice 
+    * 添加流动池后，只影响后续投资，没有调整已有的投资。如果要调整已投入的流动池，请调用reBalance函数.
     */
     function addPair(address _token, uint[] calldata proportions) external onlyController {
         uint _whole;
@@ -307,12 +305,9 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         require(_whole == DIVISOR, 'Error proportion.');
     }
 
-
     /**
     * @notice 调整流动池.
-    * 每次只能调整2个流动池的流动性，一个升，一个降.
-    * 如果要移除某个流动池，将该流动池的流动性降到0即可. 对于移除的流动池，需要将该流动池清空.
-    * 调整之后只影响后续投资，没有调整已有的投资。如果要调整已投入的流动池，应该用reBalance函数.
+    * 调整之后只影响后续投资，没有调整已有的投资。如果要调整已投入的流动池，请调用reBalance函数.
     */
     function adjustPairs(uint[] calldata proportions) external onlyController {
         uint _whole;
@@ -327,7 +322,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
 
     /**
     * @notice 调整已投入的流动池.
-    * 在调整流动池时, 如果金额较大，则应该考虑分次调整, 多付几笔gas费用，尽量降低滑点.
+    * 在调整流动池时, 如果金额较大，请多付几笔gas费用，分次调整, 尽量降低滑点.
      */
     function reBalance(
         uint add_index,
@@ -376,6 +371,10 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
+    /**
+    * @notice 移除占比为0的流动池.
+    * 只有占比已经设置为0的流动池才能移除.
+     */
     function removePair(uint index) external onlyController {
         require(index < pairs.length, 'Pairs index out of range.');
         require(pairs[index].proportion == 0, 'Proportion is not equal to 0.');
