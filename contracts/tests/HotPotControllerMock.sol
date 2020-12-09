@@ -67,18 +67,17 @@ contract HotPotControllerMock is ReentrancyGuard {
         IHotPotFund(fund).invest(amount);
     }
 
-    function addPool(address fund, address token, uint proportion) external onlyManager{
+    function addPair(address fund, address token, uint[] calldata proportions) external onlyManager{
         require(trustedToken[token], "The token is not trusted.");
-        IHotPotFund(fund).addPool(token, proportion);
+        IHotPotFund(fund).addPair(token, proportions);
     }
 
-    function adjustPool(
-        address fund,
-        uint up_index,
-        uint down_index,
-        uint proportion
-    ) external onlyManager {
-        IHotPotFund(fund).adjustPool(up_index, down_index, proportion);
+    function adjustPairs(address fund, uint[] calldata proportions) external onlyManager {
+        IHotPotFund(fund).adjustPairs(proportions);
+    }
+
+    function removePair(address fund, uint index)  external onlyManager {
+        IHotPotFund(fund).removePair(index);
     }
 
     function reBalance(
