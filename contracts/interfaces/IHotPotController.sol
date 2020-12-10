@@ -15,12 +15,12 @@ interface IHotPotController {
     function removePair(address fund, uint index) external;
     function reBalance(address fund, uint add_index, uint remove_index, uint liquidity) external;
     function setSwapPath(address fund, address tokenIn, address tokenOut, IHotPotFund.SwapPath path) external;
-    function stakeMintingUNI(address fund, address pair) external;
-    function stakeMintingUNIAll(address fund) external;
+    function mintUNI(address fund, address pair) external;
+    function mintUNIAll(address fund) external;
 
     function setManager(address account) external;
     function setGovernance(address account) external;
 
-    function setMintingUNIPool(address fund, address pair, address mintingPool) external;
+    function setUNIPool(address fund, address pair, address uniPool) external;
     function setTrustedToken(address token, bool isTrusted) external;
 }

@@ -119,16 +119,16 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
-    function setMintingUNIPool(address pair, address mintingPool) external onlyController {
-        require(pair!= address(0) && mintingPool!= address(0), "Invalid args address.");
+    function setUNIPool(address pair, address uniPool) external onlyController {
+        require(pair!= address(0) && uniPool!= address(0), "Invalid args address.");
         if(uniMintingPool[pair] != address(0)){
             _withdrawStaking(IUniswapV2Pair(pair), totalSupply);
         }
-        IERC20(pair).approve(mintingPool, 2**256-1);
-        uniMintingPool[pair] = mintingPool;
+        IERC20(pair).approve(uniPool, 2**256-1);
+        uniMintingPool[pair] = uniPool;
     }
 
-    function stakeMintingUNI(address pair) public onlyController {
+    function mintUNI(address pair) public onlyController {
         address stakingRewardAddr = uniMintingPool[pair];
         if(stakingRewardAddr != address(0)){
             uint liquidity = IUniswapV2Pair(pair).balanceOf(address(this));
@@ -138,7 +138,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
-    function stakeMintingUNIAll() external onlyController {
+    function mintUNIAll() external onlyController {
         for(uint i = 0; i < pairs.length; i++){
             IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(WETH, pairs[i].token));
             address stakingRewardAddr = uniMintingPool[address(pair)];

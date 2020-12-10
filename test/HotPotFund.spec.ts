@@ -132,20 +132,20 @@ describe('HotPotFund', () => {
         }
     ));
 
-    it('setUNIMintingPool', async () => {
+    it('setUNIPool', async () => {
         //Non-Controller operation
-        await expect(hotPotFund.setMintingUNIPool(await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenDAI.address), fixture.uniStakingRewardsDAI.address))
+        await expect(hotPotFund.setUNIPool(await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenDAI.address), fixture.uniStakingRewardsDAI.address))
             .to.be.revertedWith("Only called by Controller.");
 
         if (investToken.address != fixture.tokenWETH.address) {
-            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, investToken.address), (fixture as any)["uniStakingRewards" + TOKEN_TYPE].address))
+            await expect(controller.connect(governance).setUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, investToken.address), (fixture as any)["uniStakingRewards" + TOKEN_TYPE].address))
                 .to.not.be.reverted;
         } else {
-            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenDAI.address), fixture.uniStakingRewardsDAI.address))
+            await expect(controller.connect(governance).setUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenDAI.address), fixture.uniStakingRewardsDAI.address))
                 .to.not.be.reverted;
-            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDC.address), fixture.uniStakingRewardsUSDC.address))
+            await expect(controller.connect(governance).setUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDC.address), fixture.uniStakingRewardsUSDC.address))
                 .to.not.be.reverted;
-            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDT.address), fixture.uniStakingRewardsUSDT.address))
+            await expect(controller.connect(governance).setUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDT.address), fixture.uniStakingRewardsUSDT.address))
                 .to.not.be.reverted;
         }
     });
@@ -278,12 +278,12 @@ describe('HotPotFund', () => {
         return {depositAmount};
     }));
 
-    it('stakeMintingUNIAll: after deposit and before invest', async () => {
+    it('mintUNIAll: after deposit and before invest', async () => {
         //Non-Controller operation
-        await expect(hotPotFund.stakeMintingUNIAll())
+        await expect(hotPotFund.mintUNIAll())
             .to.be.revertedWith("Only called by Controller.");
 
-        await expect(controller.stakeMintingUNIAll(hotPotFund.address))
+        await expect(controller.mintUNIAll(hotPotFund.address))
             .to.not.be.reverted;
 
         await expect(await hotPotFund.debtOf(depositor.address))
@@ -518,13 +518,13 @@ describe('HotPotFund', () => {
         return {amount: expectedDepositAmount}
     }));
 
-    it('stakeMintingUNIAll: after investing', async () => {
+    it('mintUNIAll: after investing', async () => {
         await sleep(1);
-        await expect(controller.stakeMintingUNIAll(hotPotFund.address))
+        await expect(controller.mintUNIAll(hotPotFund.address))
             .to.not.be.reverted;
 
         //Non-Controller operation
-        await expect(hotPotFund.stakeMintingUNIAll())
+        await expect(hotPotFund.mintUNIAll())
             .to.be.revertedWith("Only called by Controller.");
     });
 

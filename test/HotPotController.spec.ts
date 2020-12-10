@@ -232,23 +232,23 @@ describe('HotPotController', () => {
         return {addIndex: 0, removeIndex: 1};
     }));
 
-    it('stakeMintingUNI', async () => {
+    it('mintUNI', async () => {
         //Non-Manager operation
-        await expect(controller.connect(depositor).stakeMintingUNI(
+        await expect(controller.connect(depositor).mintUNI(
             hotPotFund.address, mintPair.address))
             .to.be.revertedWith("Only called by Manager.");
 
-        await expect(controller.connect(manager).stakeMintingUNI(
+        await expect(controller.connect(manager).mintUNI(
             hotPotFund.address, mintPair.address))
             .to.not.be.reverted;
     });
 
-    it('stakeMintingUNIAll', async () => {
+    it('mintUNIAll', async () => {
         //Non-Manager operation
-        await expect(controller.connect(depositor).stakeMintingUNIAll(hotPotFund.address))
+        await expect(controller.connect(depositor).mintUNIAll(hotPotFund.address))
             .to.be.revertedWith("Only called by Manager.");
 
-        await expect(controller.connect(manager).stakeMintingUNIAll(hotPotFund.address))
+        await expect(controller.connect(manager).mintUNIAll(hotPotFund.address))
             .to.not.be.reverted;
     });
 
@@ -274,14 +274,14 @@ describe('HotPotController', () => {
         await expect(await controller.governance()).to.eq(governance.address);
     });
 
-    it('setMintingUNIPool', async () => {
+    it('setUNIPool', async () => {
         const mintPair = (await getPair(fixture.factory, fixture.tokenETH.address, fixture.tokenDAI.address));
         //Non-Governance operation
-        await expect(controller.connect(depositor).setMintingUNIPool(
+        await expect(controller.connect(depositor).setUNIPool(
             hotPotFund.address, mintPair.address, fixture.uniStakingRewardsDAI.address))
             .to.be.revertedWith("Only called by Governance.");
 
-        await expect(controller.connect(governance).setMintingUNIPool(
+        await expect(controller.connect(governance).setUNIPool(
             hotPotFund.address, mintPair.address, fixture.uniStakingRewardsDAI.address))
             .to.not.be.reverted;
     });
