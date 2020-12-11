@@ -42,7 +42,7 @@ interface IHotPotFundETH {
     function reBalance(uint add_index, uint remove_index, uint liquidity) external;
     function setSwapPath(address tokenIn, address tokenOut, SwapPath path) external;
 
-    function setMintingUNIPool(address pair, address mintingPool) external;
-    function stakeMintingUNI(address pair) external;
-    function stakeMintingUNIAll() external;
+    function setUNIPool(address pair, address uniPool) external;
+    function mintUNI(address pair) external;
+    function mintUNIAll() external;
 }

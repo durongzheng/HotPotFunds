@@ -103,12 +103,12 @@ contract HotPotControllerMock is ReentrancyGuard {
         manager = account;
     }
 
-    function stakeMintingUNI(address fund, address pair) external onlyManager {
-        IHotPotFund(fund).stakeMintingUNI(pair);
+    function mintUNI(address fund, address pair) external onlyManager {
+        IHotPotFund(fund).mintUNI(pair);
     }
 
-    function stakeMintingUNIAll(address fund) external onlyManager {
-        IHotPotFund(fund).stakeMintingUNIAll();
+    function mintUNIAll(address fund) external onlyManager {
+        IHotPotFund(fund).mintUNIAll();
     }
 
     function setGovernance(address account) onlyGovernance external {
@@ -116,8 +116,8 @@ contract HotPotControllerMock is ReentrancyGuard {
         governance = account;
     }
 
-    function setMintingUNIPool(address fund, address pair, address mintingPool) external onlyGovernance {
-        IHotPotFund(fund).setMintingUNIPool(pair, mintingPool);
+    function setUNIPool(address fund, address pair, address uniPool) external onlyGovernance {
+        IHotPotFund(fund).setUNIPool(pair, uniPool);
     }
 
     function setTrustedToken(address token, bool isTrusted) external onlyGovernance {
