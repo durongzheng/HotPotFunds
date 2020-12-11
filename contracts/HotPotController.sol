@@ -103,12 +103,12 @@ contract HotPotController is ReentrancyGuard {
         manager = account;
     }
 
-    function mintUNI(address fund, address pair) external onlyManager {
-        IHotPotFund(fund).mintUNI(pair);
+    function mineUNI(address fund, address pair) external onlyManager {
+        IHotPotFund(fund).mineUNI(pair);
     }
 
-    function mintUNIAll(address fund) external onlyManager {
-        IHotPotFund(fund).mintUNIAll();
+    function mineUNIAll(address fund) external onlyManager {
+        IHotPotFund(fund).mineUNIAll();
     }
 
     function setGovernance(address account) onlyGovernance external {

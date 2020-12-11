@@ -290,17 +290,18 @@ export async function HotPotFixture(provider: Web3Provider, [wallet]: Wallet[]):
     await createPairAndInit(tokenUSDT, tokenHotPot);
 
     // UNI stakingRewards
-    const uniMintingPool: any = {};
-    async function addUniMintingPool(token0: string, token1: string) {
+    const uniPool: any = {};
+    async function addUniPool(token0: string, token1: string) {
         const pairAddr = await factory.getPair(token0, token1);
-        uniMintingPool[pairAddr] = await deployContract(wallet, StakingRewards,
+        uniPool[pairAddr] = await deployContract(wallet, StakingRewards,
             [wallet.address, tokenUNI.address, pairAddr], overrides);
-        return uniMintingPool[pairAddr];
+        return uniPool[pairAddr];
     }
-    const uniStakingRewardsDAI = await addUniMintingPool(tokenWETH.address, tokenDAI.address);
-    const uniStakingRewardsUSDC = await addUniMintingPool(tokenWETH.address, tokenUSDC.address);
-    const uniStakingRewardsUSDT = await addUniMintingPool(tokenWETH.address, tokenUSDT.address);
-    (factory as any)["uniMintingPool"] = uniMintingPool;
+
+    const uniStakingRewardsDAI = await addUniPool(tokenWETH.address, tokenDAI.address);
+    const uniStakingRewardsUSDC = await addUniPool(tokenWETH.address, tokenUSDC.address);
+    const uniStakingRewardsUSDT = await addUniPool(tokenWETH.address, tokenUSDT.address);
+    (factory as any)["uniPool"] = uniPool;
 
     // deploy HotPotController
     const hotPotController = await deployContract(wallet, HotPotController,

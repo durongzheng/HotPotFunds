@@ -34,7 +34,7 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     uint public totalDebts;
     mapping(address => uint256) public debtOf;
     // UNI mining pool pair->minting pool
-    mapping(address => address) public uniMintingPool;
+    mapping(address => address) public uniPool;
 
     struct Pair {
         address token;
@@ -140,17 +140,17 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
-    function setUNIPool(address pair, address uniPool) external onlyController {
-        require(pair!= address(0) && uniPool!= address(0), "Invalid args address.");
-        if(uniMintingPool[pair] != address(0)){
+    function setUNIPool(address pair, address _uniPool) external onlyController {
+        require(pair!= address(0) && _uniPool!= address(0), "Invalid args address.");
+        if(uniPool[pair] != address(0)){
             _withdrawStaking(IUniswapV2Pair(pair), totalSupply);
         }
-        IERC20(pair).approve(uniPool, 2**256-1);
-        uniMintingPool[pair] = uniPool;
+        IERC20(pair).approve(_uniPool, 2**256-1);
+        uniPool[pair] = _uniPool;
     }
 
-    function mintUNI(address pair) public onlyController {
-        address stakingRewardAddr = uniMintingPool[pair];
+    function mineUNI(address pair) public onlyController {
+        address stakingRewardAddr = uniPool[pair];
         if(stakingRewardAddr != address(0)){
             uint liquidity = IUniswapV2Pair(pair).balanceOf(address(this));
             if(liquidity > 0){
@@ -159,10 +159,10 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
-    function mintUNIAll() external onlyController {
+    function mineUNIAll() external onlyController {
         for(uint i = 0; i < pairs.length; i++){
             IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, pairs[i].token));
-            address stakingRewardAddr = uniMintingPool[address(pair)];
+            address stakingRewardAddr = uniPool[address(pair)];
             if(stakingRewardAddr != address(0)){
                 uint liquidity = pair.balanceOf(address(this));
                 if(liquidity > 0){
@@ -176,7 +176,7 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         amount = IERC20(UNI).balanceOf(address(this));
         for(uint i = 0; i < pairs.length; i++){
             IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, pairs[i].token));
-            address stakingRewardAddr = uniMintingPool[address(pair)];
+            address stakingRewardAddr = uniPool[address(pair)];
             if(stakingRewardAddr != address(0)){
                 amount = amount.add(IStakingRewards(stakingRewardAddr).earned(address(this)));
             }
@@ -192,13 +192,13 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     }
 
     function stakingLPOf(address pair) public view returns(uint liquidity){
-        if(uniMintingPool[pair] != address(0)){
-            liquidity = IStakingRewards(uniMintingPool[pair]).balanceOf(address(this));
+        if(uniPool[pair] != address(0)){
+            liquidity = IStakingRewards(uniPool[pair]).balanceOf(address(this));
         }
     }
 
     function _withdrawStaking(IUniswapV2Pair pair, uint share) internal returns(uint liquidity){
-        address stakingRewardAddr = uniMintingPool[address(pair)];
+        address stakingRewardAddr = uniPool[address(pair)];
         if(stakingRewardAddr != address(0)){
             liquidity = IStakingRewards(stakingRewardAddr).balanceOf(address(this)).mul(share).div(totalSupply);
             if(liquidity > 0){
@@ -383,7 +383,7 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
 
         uint stakingLP = stakingLPOf(address(pair));
-        if(stakingLP > 0) IStakingRewards(uniMintingPool[address(pair)]).exit();
+        if(stakingLP > 0) IStakingRewards(uniPool[address(pair)]).exit();
 
         require(liquidity <= pair.balanceOf(address(this)), 'Not enough liquidity.');
 

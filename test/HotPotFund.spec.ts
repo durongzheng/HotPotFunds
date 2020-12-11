@@ -63,13 +63,13 @@ describe('HotPotFund', () => {
             await investToken._mint_for_testing(trader.address, INIT_DEPOSIT_AMOUNT);
         }
 
-        //UNI DAI-ETH minting
+        //UNI DAI-ETH mining
         await fixture.tokenUNI.transfer(fixture.uniStakingRewardsDAI.address, INIT_STAKE_REWARDS_AMOUNT);
         await fixture.uniStakingRewardsDAI.notifyRewardAmount(INIT_STAKE_REWARDS_AMOUNT);
-        //UNI USDC-ETH minting
+        //UNI USDC-ETH mining
         await fixture.tokenUNI.transfer(fixture.uniStakingRewardsUSDC.address, INIT_STAKE_REWARDS_AMOUNT);
         await fixture.uniStakingRewardsUSDC.notifyRewardAmount(INIT_STAKE_REWARDS_AMOUNT);
-        //UNI USDT-ETH minting
+        //UNI USDT-ETH mining
         await fixture.tokenUNI.transfer(fixture.uniStakingRewardsUSDT.address, INIT_STAKE_REWARDS_AMOUNT);
         await fixture.uniStakingRewardsUSDT.notifyRewardAmount(INIT_STAKE_REWARDS_AMOUNT);
     });
@@ -278,12 +278,12 @@ describe('HotPotFund', () => {
         return {depositAmount};
     }));
 
-    it('mintUNIAll: after deposit and before invest', async () => {
+    it('mineUNIAll: after deposit and before invest', async () => {
         //Non-Controller operation
-        await expect(hotPotFund.mintUNIAll())
+        await expect(hotPotFund.mineUNIAll())
             .to.be.revertedWith("Only called by Controller.");
 
-        await expect(controller.mintUNIAll(hotPotFund.address))
+        await expect(controller.mineUNIAll(hotPotFund.address))
             .to.not.be.reverted;
 
         await expect(await hotPotFund.debtOf(depositor.address))
@@ -336,8 +336,8 @@ describe('HotPotFund', () => {
     }
 
     async function balanceOfStaking(pair: Contract) {
-        if (fixture.factory.uniMintingPool[pair.address]) {
-            return await fixture.factory.uniMintingPool[pair.address].balanceOf(hotPotFund.address);
+        if (fixture.factory.uniPool[pair.address]) {
+            return await fixture.factory.uniPool[pair.address].balanceOf(hotPotFund.address);
         } else {
             return bigNumberify(0);
         }
@@ -518,13 +518,13 @@ describe('HotPotFund', () => {
         return {amount: expectedDepositAmount}
     }));
 
-    it('mintUNIAll: after investing', async () => {
+    it('mineUNIAll: after investing', async () => {
         await sleep(1);
-        await expect(controller.mintUNIAll(hotPotFund.address))
+        await expect(controller.mineUNIAll(hotPotFund.address))
             .to.not.be.reverted;
 
         //Non-Controller operation
-        await expect(hotPotFund.mintUNIAll())
+        await expect(hotPotFund.mineUNIAll())
             .to.be.revertedWith("Only called by Controller.");
     });
 
@@ -538,7 +538,7 @@ describe('HotPotFund', () => {
         return {depositAmount};
     }));
 
-    it('withdraw: after investing and minting UNI', withdraw(async () => {
+    it('withdraw: after investing and mining UNI', withdraw(async () => {
         const periodFinish = await fixture.uniStakingRewardsDAI.periodFinish();
         await sleep(periodFinish.sub(Math.floor(new Date().getTime() / 1e3)).toNumber());
         const withdrawRatio = 2;//50%
