@@ -26,7 +26,7 @@ interface IHotPotFundETH {
 
     function totalDebts() external view returns (uint);
     function debtOf(address owner) external view returns (uint256);
-    function uniMintingPool(address pair) external view returns (address);
+    function uniPool(address pair) external view returns (address);
 
     function pairs(uint index) external view returns (address, uint);
     function pairsLength() external view returns(uint);
@@ -42,7 +42,7 @@ interface IHotPotFundETH {
     function reBalance(uint add_index, uint remove_index, uint liquidity) external;
     function setSwapPath(address tokenIn, address tokenOut, SwapPath path) external;
 
-    function setUNIPool(address pair, address uniPool) external;
-    function mintUNI(address pair) external;
-    function mintUNIAll() external;
+    function setUNIPool(address pair, address _uniPool) external;
+    function mineUNI(address pair) external;
+    function mineUNIAll() external;
 }

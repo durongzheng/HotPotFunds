@@ -34,7 +34,7 @@ describe('HotPotController', () => {
     let token2: Contract;
     let INIT_DEPOSIT_AMOUNT: BigNumber;
     let INIT_HARVEST_AMOUNT: BigNumber;
-    let mintPair: Contract;
+    let minePair: Contract;
 
     before(async () => {
         fixture = await loadFixture(HotPotFixture);
@@ -50,7 +50,7 @@ describe('HotPotController', () => {
         tokens.splice(index, 1);
         token1 = tokens[0];
         token2 = tokens[1];
-        mintPair = await getPair(fixture.factory, fixture.tokenETH.address,
+        minePair = await getPair(fixture.factory, fixture.tokenETH.address,
             investToken.address != fixture.tokenETH.address ? investToken.address : fixture.tokenDAI.address);
 
         INIT_DEPOSIT_AMOUNT = await investToken.decimals() == 18 ? INIT_DEPOSIT_AMOUNT_18 : INIT_DEPOSIT_AMOUNT_6;
@@ -232,23 +232,23 @@ describe('HotPotController', () => {
         return {addIndex: 0, removeIndex: 1};
     }));
 
-    it('mintUNI', async () => {
+    it('mineUNI', async () => {
         //Non-Manager operation
-        await expect(controller.connect(depositor).mintUNI(
-            hotPotFund.address, mintPair.address))
+        await expect(controller.connect(depositor).mineUNI(
+            hotPotFund.address, minePair.address))
             .to.be.revertedWith("Only called by Manager.");
 
-        await expect(controller.connect(manager).mintUNI(
-            hotPotFund.address, mintPair.address))
+        await expect(controller.connect(manager).mineUNI(
+            hotPotFund.address, minePair.address))
             .to.not.be.reverted;
     });
 
-    it('mintUNIAll', async () => {
+    it('mineUNIAll', async () => {
         //Non-Manager operation
-        await expect(controller.connect(depositor).mintUNIAll(hotPotFund.address))
+        await expect(controller.connect(depositor).mineUNIAll(hotPotFund.address))
             .to.be.revertedWith("Only called by Manager.");
 
-        await expect(controller.connect(manager).mintUNIAll(hotPotFund.address))
+        await expect(controller.connect(manager).mineUNIAll(hotPotFund.address))
             .to.not.be.reverted;
     });
 
@@ -275,14 +275,14 @@ describe('HotPotController', () => {
     });
 
     it('setUNIPool', async () => {
-        const mintPair = (await getPair(fixture.factory, fixture.tokenETH.address, fixture.tokenDAI.address));
+        const minePair = (await getPair(fixture.factory, fixture.tokenETH.address, fixture.tokenDAI.address));
         //Non-Governance operation
         await expect(controller.connect(depositor).setUNIPool(
-            hotPotFund.address, mintPair.address, fixture.uniStakingRewardsDAI.address))
+            hotPotFund.address, minePair.address, fixture.uniStakingRewardsDAI.address))
             .to.be.revertedWith("Only called by Governance.");
 
         await expect(controller.connect(governance).setUNIPool(
-            hotPotFund.address, mintPair.address, fixture.uniStakingRewardsDAI.address))
+            hotPotFund.address, minePair.address, fixture.uniStakingRewardsDAI.address))
             .to.not.be.reverted;
     });
 
