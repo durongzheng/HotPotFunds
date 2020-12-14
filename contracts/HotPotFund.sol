@@ -312,9 +312,10 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     */
     function addPair(address _token, uint[] calldata proportions) external onlyController {
         uint _whole;
+        uint addIndex = pairs.length;
         address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, _token);
         require(pair != address(0), 'Pair not exist.');
-        require(proportions.length == pairs.length+1, 'Pairs index out of range.');
+        require(proportions.length == addIndex+1, 'Pairs index out of range.');
 
         //approve for add liquidity and swap.
         IERC20(_token).safeApprove(UNISWAP_V2_ROUTER, 2**256-1);
@@ -323,8 +324,9 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         IUniswapV2Pair(pair).approve(UNISWAP_V2_ROUTER, 2**256-1);
 
         pairs.length++;
-        pairs[pairs.length-1].token = _token;
-        for(uint i=0; i<pairs.length; i++) {
+        pairs[addIndex].token = _token;
+        for(uint i = 0; i <= addIndex; i++) {
+            if(i < addIndex) require(pairs[i].token != _token, 'Add pair repeatedly.');
             pairs[i].proportion = proportions[i];
             _whole = _whole.add(proportions[i]);
         }
