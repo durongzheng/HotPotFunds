@@ -115,9 +115,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
             的token1数量就有可能超过流动池中(token0:token1)比率所需的token1数量.
             如果出现这种特殊情况，token1会剩余，需要将多余的token1换回token0.
             */
-            if(amount1 > amountB) {
-                _swap(token1, token0, amount1.sub(amountB));
-            }
+            if(amount1 > amountB) _swap(token1, token0, amount1.sub(amountB));
         }
         require(_whole == DIVISOR, 'Error proportion.');
     }
@@ -348,9 +346,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         );
 
         //处理dust. 如果有的话
-        if(amount1 > amountB) {
-            _swap(token1, token0, amount1.sub(amountB));
-        }
+        if(amount1 > amountB) _swap(token1, token0, amount1.sub(amountB));
     }
 
     /**

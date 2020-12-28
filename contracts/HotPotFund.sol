@@ -17,13 +17,10 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
 
     address constant UNISWAP_FACTORY = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    address constant CURVE_FI = 0xA34478cA4Ae11A4776AF854A0B9de750D4A47b48;
     address constant UNI = 0x4047fbe32235E74C1264567D80D28d44A50c1dDb;
 
     uint constant DIVISOR = 100;
     uint constant FEE = 20;
-
-    mapping (address => int128) private curve_tokenID;
 
     address public token;
     address public controller;
@@ -38,8 +35,9 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
 
     address[] public pairs;
 
-    enum SwapPath { UNISWAP, CURVE }
-    mapping (address => mapping (address => SwapPath)) public paths;
+    //Curve swap pools
+    mapping (address => address) public curvePool;
+    mapping (address => int128) CURVE_N_COINS;
 
     modifier onlyController() {
         require(msg.sender == controller, 'Only called by Controller.');
@@ -53,14 +51,9 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     constructor (address _token, address _controller) public {
         //approve for add liquidity and swap. 2**256-1 never used up.
         IERC20(_token).safeApprove(UNISWAP_V2_ROUTER, 2**256-1);
-        IERC20(_token).safeApprove(CURVE_FI, 2**256-1);
 
         token = _token;
         controller = _controller;
-
-        curve_tokenID[0x46Ea852f836Fd93AfdD80e8af2fCBd70b73044A6] = int128(0);	//DAI
-        curve_tokenID[0x74945623F947b0A8764cd365d3a4784e7D91C8e4] = int128(1);	//USDC
-        curve_tokenID[0x1465ffF54D9D746601845CA2762a0111671CC830] = int128(2);	//USDT
     }
 
     function deposit(uint amount) public nonReentrant returns(uint share) {
@@ -108,11 +101,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
             if(amount0 == 0) continue;
 
             address token1 = pairs[i];
-            uint amount1;
-            if(paths[token0][token1] == SwapPath.CURVE)
-                amount1 = _swapByCurve(token0, token1, amount0);
-            else
-                amount1 = _swap(token0, token1, amount0);
+            uint amount1 = _swap(token0, token1, amount0);
 
             (,uint amountB,) = IUniswapV2Router(UNISWAP_V2_ROUTER).addLiquidity(
                 token0, token1,
@@ -127,12 +116,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
             的token1数量就有可能超过流动池中(token0:token1)比率所需的token1数量.
             如果出现这种特殊情况，token1会剩余，需要将多余的token1换回token0.
             */
-            if(amount1 > amountB) {
-                if( paths[token1][token0] == SwapPath.CURVE )
-                    _swapByCurve(token1, token0, amount1.sub(amountB));
-                else
-                    _swap(token1, token0, amount1.sub(amountB));
-            }
+            if(amount1 > amountB) _swap(token1, token0, amount1.sub(amountB));
         }
         require(_whole == DIVISOR, 'Error proportion.');
     }
@@ -237,11 +221,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
                 0, 0,
                 address(this), block.timestamp
             );
-            amount = amount.add(amount0);
-            if( paths[token1][token0] == SwapPath.CURVE )
-                amount = amount.add(_swapByCurve(token1, token0, amount1));
-            else
-                amount = amount.add(_swap(token1, token0, amount1));
+            amount = amount.add(amount0).add(_swap(token1, token0, amount1));
         }
 
         //withdraw UNI reward
@@ -301,12 +281,17 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         return pairs.length;
     }
 
-    function setSwapPath(
-        address tokenIn,
-        address tokenOut,
-        SwapPath path
-    ) external onlyController {
-        paths[tokenIn][tokenOut] = path;
+    function setCurvePool(address _token, address _curvePool, int128 N_COINS) external onlyController {
+        curvePool[_token] = _curvePool;
+        if(_curvePool != address(0)) {
+            if(IERC20(token).allowance(address(this), _curvePool) == 0){
+                IERC20(token).safeApprove(_curvePool, 2**256-1);
+            }
+            if(IERC20(_token).allowance(address(this), _curvePool) == 0){
+                IERC20(_token).safeApprove(_curvePool, 2**256-1);
+            }
+            CURVE_N_COINS[_curvePool] = N_COINS;
+        }
     }
 
     /**
@@ -319,7 +304,6 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
 
         //approve for add liquidity and swap.
         IERC20(_token).safeApprove(UNISWAP_V2_ROUTER, 2**256-1);
-        IERC20(_token).safeApprove(CURVE_FI, 2**256-1);
         //approve for remove liquidity
         IUniswapV2Pair(pair).approve(UNISWAP_V2_ROUTER, 2**256-1);
 
@@ -348,7 +332,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         uint stakingLP = stakingLPOf(address(pair));
         if(stakingLP > 0) IStakingRewards(uniPool[address(pair)]).exit();
 
-        require(liquidity <= pair.balanceOf(address(this)), 'Not enough liquidity.');
+        require(liquidity <= pair.balanceOf(address(this)) && liquidity > 0, 'Not enough liquidity.');
 
         (uint amount0, uint amount1) = IUniswapV2Router(UNISWAP_V2_ROUTER).removeLiquidity(
             token0, token1,
@@ -356,10 +340,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
             0, 0,
             address(this), block.timestamp
         );
-        if( paths[token1][token0] == SwapPath.CURVE )
-            amount0 = amount0.add(_swapByCurve(token1, token0, amount1));
-        else
-            amount0 = amount0.add(_swap(token1, token0, amount1));
+        amount0 = amount0.add(_swap(token1, token0, amount1));
 
         //Only remove liquidity
         if(add_index >= pairs.length || add_index == remove_index) return;
@@ -367,10 +348,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         //兑换&投入
         token1 = pairs[add_index];
         amount0 = amount0 >> 1;
-        if( paths[token0][token1] == SwapPath.CURVE )
-            amount1 = _swapByCurve(token0, token1, amount0);
-        else
-            amount1 = _swap(token0, token1, amount0);
+        amount1 = _swap(token0, token1, amount0);
 
         (,uint amountB,) = IUniswapV2Router(UNISWAP_V2_ROUTER).addLiquidity(
             token0, token1,
@@ -380,12 +358,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         );
 
         //处理dust. 如果有的话
-        if(amount1 > amountB) {
-            if( paths[token1][token0] == SwapPath.CURVE )
-                _swapByCurve(token1, token0, amount1.sub(amountB));
-            else
-                _swap(token1, token0, amount1.sub(amountB));
-        }
+        if(amount1 > amountB) _swap(token1, token0, amount1.sub(amountB));
     }
 
     /**
@@ -408,35 +381,38 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
                 0, 0,
                 address(this), block.timestamp
             );
-            if( paths[token1][token0] == SwapPath.CURVE )
-                amount0 = amount0.add(_swapByCurve(token1, token0, amount1));
-            else
-                amount0 = amount0.add(_swap(token1, token0, amount1));
+            amount0 = amount0.add(_swap(token1, token0, amount1));
         }
         IERC20(token1).safeApprove(UNISWAP_V2_ROUTER, 0);
-        IERC20(token1).safeApprove(CURVE_FI, 0);
+
         for (uint i = index; i < pairs.length-1; i++){
             pairs[i] = pairs[i+1];
         }
         pairs.pop();
     }
 
-    function _swap(address tokenIn, address tokenOut, uint amount) private returns(uint) {
+    function _swap(address tokenIn, address tokenOut, uint amount)  private returns(uint) {
+        address pool = tokenIn == token ? curvePool[tokenOut] : curvePool[tokenIn];
+        if(pool != address(0)){
+            int128 N_COINS = CURVE_N_COINS[pool];
+            int128 idxIn = N_COINS;
+            int128 idxOut = N_COINS;
+            for(int128 i=0; i<N_COINS; i++){
+                address coin = ICurve(pool).coins(uint(i));
+                if(coin == tokenIn) {idxIn = i; continue;}
+                if(coin == tokenOut) idxOut = i;
+            }
+            if(idxIn != N_COINS && idxOut != N_COINS){
+                uint amountBefore = IERC20(tokenOut).balanceOf(address(this));
+                ICurve(pool).exchange(idxIn, idxOut, amount, 0);
+                return (IERC20(tokenOut).balanceOf(address(this))).sub(amountBefore);
+            }
+        }
         address[] memory path = new address[](2);
         path[0] = tokenIn;
         path[1] = tokenOut;
         uint[] memory amounts = IUniswapV2Router(UNISWAP_V2_ROUTER).swapExactTokensForTokens(
-            amount,
-            0,
-            path,
-            address(this), block.timestamp);
+            amount, 0, path, address(this), block.timestamp);
         return amounts[1];
-    }
-
-    function _swapByCurve(address tokenIn, address tokenOut, uint amount) private returns(uint) {
-        int128 id0 = curve_tokenID[tokenIn];
-        int128 id1 = curve_tokenID[tokenOut];
-        ICurve(CURVE_FI).exchange(id0, id1, amount, 0);
-        return IERC20(tokenOut).balanceOf(address(this));
     }
 }

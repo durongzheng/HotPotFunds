@@ -43,6 +43,7 @@ describe('HotPotFund', () => {
     let expectedDepositAmount = bigNumberify(0);
     let expectedWithdrawAmount = bigNumberify(0);
     let expectedShareAmount = bigNumberify(0);
+    const N_COINS = 3;
 
     before(async () => {
         TOKEN_TYPE = "DAI"; //DAI/USDC/USDT/ETH
@@ -102,29 +103,14 @@ describe('HotPotFund', () => {
                 pairsLength: {
                     value: 0
                 },
-                curve_tokenID: [
-                    {
-                        args: [fixture.tokenDAI.address],
-                        value: 0
-                    },
-                    {
-                        args: [fixture.tokenUSDC.address],
-                        value: 1
-                    },
-                    {
-                        args: [fixture.tokenUSDT.address],
-                        value: 2
-                    },
-                ],
-                paths: {
-                    args: [fixture.tokenDAI.address, fixture.tokenUSDC.address],
-                    value: 0
+                curvePool: {
+                    args: [fixture.tokenDAI.address],
+                    value: AddressZero
                 }
             };
             if (investToken.address == fixture.tokenWETH.address) {
                 delete caseData.token;
-                delete caseData.curve_tokenID;
-                delete caseData.paths;
+                delete caseData.curvePool;
             }
             return {target, caseData};
         }
@@ -474,26 +460,25 @@ describe('HotPotFund', () => {
         return {shareAmount, isCurve: false};
     }));
 
-    function setSwapPath(builder: () => any) {
+    function setCurvePool(builder: () => any) {
         return async () => {
             if (investToken.address == fixture.tokenWETH.address) return;
 
-            const {tokenIn, tokenOut, path} = await builder();
+            const {token, curvePoolAddr} = await builder();
             //Non-Controller operation
-            await expect(hotPotFund.connect(depositor).setSwapPath(tokenIn.address, tokenOut.address, path))
+            await expect(hotPotFund.connect(depositor).setCurvePool(token.address, curvePoolAddr, N_COINS))
                 .to.be.revertedWith("Only called by Controller.");
 
-            //DAi->USDC = Uniswap(0)
-            await expect(controller.connect(manager).setSwapPath(hotPotFund.address, tokenIn.address, tokenOut.address, path))
-                .to.not.be.reverted;
+            const transaction = await controller.connect(governance).setCurvePool(hotPotFund.address, token.address, curvePoolAddr, N_COINS);
+            printGasLimit(transaction, "setCurvePool");
+            await expect(Promise.resolve(transaction)).to.not.be.reverted;
         };
     }
 
-    it('setSwapPath: Uniswap before investing', setSwapPath(async () => {
+    it('setCurvePool: Uniswap before investing', setCurvePool(async () => {
         return {
-            tokenIn: investToken,
-            tokenOut: tokens[0],
-            path: 1 //Uniswap(0) Curve(1)
+            token: tokens[0],
+            curvePoolAddr: AddressZero
         }
     }));
 
@@ -534,11 +519,10 @@ describe('HotPotFund', () => {
         return {shareAmount, isCurve: false};
     }));
 
-    it('setSwapPath: Curve before reBalance', setSwapPath(async () => {
+    it('setCurvePool: Curve before reBalance', setCurvePool(async () => {
         return {
-            tokenIn: investToken,
-            tokenOut: tokens[0],
-            path: 1 //Uniswap(0) Curve(1)
+            token: tokens[0],
+            curvePoolAddr: fixture.curve.address
         }
     }));
 
@@ -599,8 +583,6 @@ describe('HotPotFund', () => {
             await expect(Promise.resolve(transaction))
                 .to.emit(tokens[removeIndex], "Approval")
                 .withArgs(hotPotFund.address, fixture.router.address, 0)
-                .to.emit(tokens[removeIndex], "Approval")
-                .withArgs(hotPotFund.address, fixture.curve.address, 0)
         } else {
             await expect(Promise.resolve(transaction))
                 .to.emit(tokens[removeIndex], "Approval")
