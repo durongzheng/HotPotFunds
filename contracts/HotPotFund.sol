@@ -94,7 +94,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
         for(uint i=0; i<len; i++){
             if(proportions[i] == 0) continue;
             _whole = _whole.add(proportions[i]);
-            
+
             uint amount0 = (amount.mul(proportions[i]).div(DIVISOR)) >> 1;
             if(amount0 == 0) continue;
 
@@ -107,7 +107,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
                 0, 0,
                 address(this), block.timestamp
             );
-         
+
             if(amount1 > amountB) _swap(token1, token0, amount1.sub(amountB));
         }
         require(_whole == DIVISOR, 'Error proportion.');
@@ -240,7 +240,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     }
 
     function assets(uint index) public view returns(uint _assets) {
-        require(index < pairs.length, 'Pairs index out of range.');
+        require(index < pairs.length, 'Pair index out of range.');
         address token0 = token;
         address token1 = pairs[index];
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
