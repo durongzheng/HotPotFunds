@@ -355,7 +355,7 @@ contract HotPotFund is ReentrancyGuard, HotPotFundERC20 {
     * @notice 移除流动池.
      */
     function removePair(uint index) external onlyController {
-        require(index < pairs.length, 'Pairs index out of range.');
+        require(index < pairs.length, 'Pair index out of range.');
 
         //撤出&兑换
         address token0 = token;
