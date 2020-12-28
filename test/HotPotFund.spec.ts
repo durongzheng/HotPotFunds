@@ -167,7 +167,7 @@ describe('HotPotFund', () => {
             if (tokens.length == 3) return;
 
             await expect(controller.addPair(hotPotFund.address, tokenArr[2].address))
-                .to.be.revertedWith('Add pair repeatedly.');
+                .to.be.revertedWith('Pair existed.');
 
             //pairsLength = 3
             await expect(await hotPotFund.pairsLength()).to.eq(3);
@@ -551,7 +551,7 @@ describe('HotPotFund', () => {
 
             //error index
             await expect(controller.reBalance(hotPotFund.address, 1, 5, 101))
-                .to.be.revertedWith("Pairs index out of range.");
+                .to.be.revertedWith("Pair index out of range.");
             //error liquidity
             await expect(controller.reBalance(hotPotFund.address, addIndex, removeIndex, MaxUint256))
                 .to.be.revertedWith("Not enough liquidity.");
@@ -576,7 +576,7 @@ describe('HotPotFund', () => {
         await sleep(1);
         // await printPairsStatus(hotPotFund);
         await expect(controller.connect(manager).removePair(hotPotFund.address, 1e4))
-            .to.be.revertedWith("Pairs index out of range.");
+            .to.be.revertedWith("Pair index out of range.");
         const transaction = await controller.connect(manager).removePair(hotPotFund.address, removeIndex);
         printGasLimit(transaction, "removePair");
         if (investToken.address != fixture.tokenWETH.address) {

@@ -101,7 +101,7 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         for(uint i=0; i<len; i++){
             if(proportions[i] == 0) continue;
             _whole = _whole.add(proportions[i]);
-            
+
             uint amount0 = (amount.mul(proportions[i]).div(DIVISOR)) >> 1;
             if(amount0 == 0) continue;
 
@@ -127,7 +127,7 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     }
 
     function setUNIPool(address pair, address _uniPool) external onlyController {
-        require(pair!= address(0) && _uniPool!= address(0), "Invalid args address.");
+        require(pair!= address(0) && _uniPool!= address(0), "Invalid address.");
 
         if(uniPool[pair] != address(0)){
             _withdrawStaking(IUniswapV2Pair(pair), totalSupply);
@@ -254,7 +254,7 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     }
 
     function assets(uint index) public view returns(uint _assets) {
-        require(index < pairs.length, 'Pairs index out of range.');
+        require(index < pairs.length, 'Pair index out of range.');
         address token0 = token;
         address token1 = pairs[index];
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
@@ -313,7 +313,7 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         IUniswapV2Pair(pair).approve(UNISWAP_V2_ROUTER, 2**256-1);
 
         for(uint i = 0; i < pairs.length; i++) {
-            require(pairs[i] != _token, 'Add pair repeatedly.');
+            require(pairs[i] != _token, 'Pair existed.');
         }
         pairs.push(_token);
     }
@@ -327,7 +327,7 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         uint remove_index,
         uint liquidity
     ) external onlyController {
-        require(remove_index < pairs.length, 'Pairs index out of range.');
+        require(remove_index < pairs.length, 'Pair index out of range.');
 
         //撤出&兑换
         address token0 = token;
@@ -368,7 +368,7 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     * @notice 移除指定的流动池.
      */
     function removePair(uint index) external onlyController {
-        require(index < pairs.length, 'Pairs index out of range.');
+        require(index < pairs.length, 'Pair index out of range.');
 
         //撤出&兑换
         address token0 = token;
